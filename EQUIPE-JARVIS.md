@@ -31,7 +31,9 @@ Arquétipo: sistema de IA para uso local no Windows. Etapa principal: **Fase 6 �
 
 Antes desta implementação, o agente principal validou um novo checkpoint ZIP de 33 arquivos-fonte. A rodada final aprovou 32 testes em 4,744 s com Python 3.14.5 no Windows, sem `ResourceWarning`, além de JavaScript e sintaxe Python. O build com PyInstaller 6.22.3 e Python 3.12.14 concluiu; o executável real 0.3.0 passou por health, assets, busca, edição, histórico, restauração, tarefas e backup via HTTP com dados descartáveis, sem Gemini/login. Não houve nova jornada Chrome nesta rodada. Resultados: [VALIDACAO.md](jarvis-gemini/VALIDACAO.md). Os números da versão 0.2 acima pertencem ao diagnóstico anterior.
 
-O primeiro commit local desta entrega está previsto após as verificações, com seleção explícita dos arquivos. O contexto pessoal `CONVERSA-JARVIS.md`, dados de uso, login, backups, dependências e binários ficam fora desse commit. Não há remoto configurado nem push nesta entrega.
+A entrega foi registrada no primeiro commit local `06b6c9d`, com 35 arquivos-fonte e guias selecionados e auditados. O contexto pessoal `CONVERSA-JARVIS.md`, dados de uso, login, backups, dependências e binários ficaram fora desse commit. Não há remoto configurado nem push nesta entrega.
+
+Os ZIPs `Jarvis-Gemini-0.3-Codigo.zip` e `Jarvis-Gemini-0.3-Windows.zip` foram gerados e conferidos, incluindo os guias finais e os hashes de `SHA256SUMS.txt`. O painel local foi reiniciado na versão 0.3.0 usando a mesma pasta de dados, após criar e verificar um backup das notas, tarefas e histórico.
 
 O código-fonte limita o prompt completo a 32.000 caracteres, incluindo instruções, JSON serializado e pedido. Preserva pedidos aceitos de até 12.000 caracteres e prioriza notas, tarefas e histórico. Os limites por componente e a seleção de trechos com posições/linhas estão documentados no [guia 0.3.0](jarvis-gemini/vault/wiki/jarvis-versao-0.3.md).
 
