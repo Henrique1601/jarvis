@@ -1,0 +1,12 @@
+.venv/
+.build-venv/
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
+.tools/node_modules/
+.npm-cache/
+.runtime/
+data/
+*.log

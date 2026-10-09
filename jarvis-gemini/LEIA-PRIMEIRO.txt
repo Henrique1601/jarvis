@@ -1,0 +1,14 @@
+JARVIS GEMINI 0.3 - WINDOWS
+
+1. Execute CONFIGURAR-GEMINI.bat e entre com sua conta Google.
+2. Execute INICIAR.bat para abrir o painel.
+3. Abra Verificar instalacao e teste a conexao.
+4. No Obsidian, abra data\vault como cofre.
+
+Dados desta versao fonte: pasta data do projeto.
+Backup e historico: disponiveis no painel.
+Memoria: trechos relevantes das notas e limite total de contexto.
+Microfone opcional: INSTALAR-VOZ.bat (Python 3.12 recomendado).
+Executavel: GERAR-EXE.bat; distribua toda a pasta gerada.
+
+Veja README.md para migracao, restauracao e limitacoes.

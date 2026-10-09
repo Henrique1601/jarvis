@@ -1,0 +1,7 @@
+.recovery/
+*.zip
+.env
+.env.*
+!.env.example
+*.pem
+*.key
