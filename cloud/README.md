@@ -2,7 +2,7 @@
 
 Aplicação online com autenticação e persistência por usuário no Supabase e respostas pela Gemini API no servidor. O destino do frontend e da API é Vercel. Esta implementação usa serviços reais; não é uma demonstração com respostas fictícias.
 
-**Situação:** build e 15 testes locais do backend aprovados; projetos remotos criados. Schema/RLS real, login, isolamento entre contas, resposta Gemini e deploy ainda não foram confirmados. A chave Gemini permanece pendente de inserção segura pelo usuário.
+**Situação:** [publicada na Vercel](https://jarvis-ten-pi-14.vercel.app/), com build e 23 testes aprovados. Supabase real preparado e verificado por SQL. O primeiro login e a persistência pela interface aguardam a criação segura da conta pelo usuário. A chave Gemini será configurada depois, conforme escolha do usuário.
 
 ## Arquitetura e dados
 
@@ -14,14 +14,14 @@ RLS e RPCs transacionais exigem proprietário autenticado e presença na lista a
 
 ## Configurar Supabase
 
-1. O projeto desta aplicação já foi criado em São Paulo: referência `jsyihprjzjjcjgpgnfrt`. Confira esse destino antes de aplicar o SQL; projeto criado não significa schema aplicado.
-2. No SQL Editor, revise e aplique integralmente `cloud/supabase/schema.sql`. O script contém as tabelas, RLS e funções RPC transacionais da aplicação.
+1. O projeto desta aplicação já foi criado em São Paulo: referência `jsyihprjzjjcjgpgnfrt`. A migração `jarvis_cloud_v1` já foi aplicada nesse projeto.
+2. Para preparar outro projeto, revise e aplique integralmente `cloud/supabase/schema.sql` no SQL Editor. O script contém as tabelas, RLS e funções RPC transacionais da aplicação; confira o destino e o histórico de migrações antes de aplicar.
 3. Confira RLS e privilégios: usuário anônimo não deve acessar dados privados; uma conta não deve acessar registros de outra.
 4. Prepare as contas permitidas em Supabase Auth, com email confirmado. Pelo SQL Editor administrativo, insira os emails autorizados em `public.jarvis_allowed_emails`, em minúsculas, e mantenha os mesmos emails em `ALLOWED_EMAILS` no servidor. O navegador não pode escrever nessa tabela. Uma conta criada pelo botão de cadastro não ganha acesso automaticamente.
 5. Cadastre a URL final da aplicação como Site URL e os retornos necessários em Redirect URLs; previews e localhost têm URLs próprias. Veja [URLs de autenticação](https://supabase.com/docs/guides/auth/redirect-urls).
 6. Obtenha a URL e a chave pública compatível com `SUPABASE_ANON_KEY` na interface Supabase. Não cole senha de banco, tokens ou chaves de serviço no chat.
 
-Uma migração salva no repositório não significa que o banco real foi preparado. Aplicação do SQL, política RLS e duas contas de teste precisam de evidência própria.
+Neste projeto, o SQL e a allowlist administrativa já foram preparados. Os testes no Postgres real usaram três usuários sintéticos em uma transação revertida ao terminar e aprovaram isolamento e operações. Isso não confirma login pela interface nem uma sessão real da aplicação publicada.
 
 Exemplo administrativo, com placeholder para preencher apenas na interface Supabase:
 
@@ -80,7 +80,7 @@ Não declare a web validada apenas porque a suíte Windows passou. Antes de publ
 1. O repositório público [Henrique1601/jarvis](https://github.com/Henrique1601/jarvis) e o projeto Vercel `prj_emYK9JO8g3C20VgvSJoIYwlAKPna` já foram preparados; o deploy desta entrega ainda precisa ser confirmado.
 2. Defina **Root Directory: `cloud`**, não a raiz do serviço Windows. Use Node.js 24.
 3. A configuração `cloud/vercel.json` usa preset Other (`framework: null`), Build Command `npm run build` e Output Directory `public`; encaminha `/api/*` ao handler `api/index.mjs`, preservando a rota. Habilite **Include source files outside of the Root Directory**: o build usa os assets de `jarvis-gemini/web/`. Essa opção já foi habilitada no projeto preparado. O build não copia `jarvis-gemini/data`.
-4. Cadastre as cinco variáveis acima pela interface e mantenha `GEMINI_API_KEY` somente no servidor. Configure Production/Preview conforme o uso; alterações de ambiente requerem novo deployment.
+4. Cadastre as variáveis acima pela interface e mantenha `GEMINI_API_KEY` somente no servidor. Supabase, allowlist e modelo já estão configurados no projeto preparado; o usuário escolheu adicionar a chave Gemini depois. Sem essa chave, notas e tarefas continuam disponíveis para contas autorizadas, mas a conversa fica indisponível. Configure Production/Preview conforme o uso; alterações de ambiente requerem novo deployment.
 5. Prepare o schema e Auth do Supabase e cadastre os retornos da URL escolhida.
 6. Execute preview, confira os fluxos abaixo e só então registre o endereço de produção.
 
@@ -99,16 +99,21 @@ Não há túnel para o computador Windows nesta arquitetura. O serviço local pe
 
 | Verificação | Resultado |
 | --- | --- |
-| Testes do backend web | 15 aprovados após os ajustes de autorização, limites e deadline; serviços simulados |
+| Testes locais web | 23 aprovados (15 de backend e 8 de frontend), em aproximadamente 0,72 s; sem login/Gemini reais |
 | Build do frontend | `npm ci` e `npm run build` aprovados; auditoria reportou zero vulnerabilidades conhecidas |
-| Suíte Windows nesta alteração | 42 testes aprovados |
-| Schema/RLS aplicado no projeto Supabase real | Pendente |
-| Login e isolamento entre duas contas reais | Pendente |
-| Resposta autenticada Gemini API | Pendente de configuração segura e teste real |
-| GitHub | Repositório público criado; base `61d0850` publicada em `main`; entrega web pendente de publicação |
-| Vercel | Projeto preparado com raiz `cloud`; deploy e URL HTTPS pendentes |
+| Suíte Windows nesta alteração | 42 testes aprovados, em 11,074 s |
+| Schema no projeto Supabase real | Migração `jarvis_cloud_v1` aplicada; allowlist do proprietário inserida pela interface administrativa |
+| Operações e isolamento no Postgres real | Aprovados em transação com três usuários sintéticos e rollback: conflito de edição, histórico/restauração, tarefas, par atômico de mensagens, rejeição de reserva reutilizada e fontes excessivas, limite de 20 tentativas e rejeição da 21ª, backup completo, escrita direta recusada, RLS/RPC entre usuários, allowlist e RPC anônimo |
+| Login e persistência pela interface publicada | Pendentes; testes SQL não substituem essa jornada |
+| Resposta autenticada Gemini API | Pendente; usuário escolheu configurar a chave depois |
+| GitHub | Entrega web `ee7749f` publicada em `main`; ambos os jobs de [CI aprovados](https://github.com/Henrique1601/jarvis/actions/runs/38057036402) |
+| Vercel | Deploy de produção `dpl_4nYM97JmjZukyAjjcerkuxWzv8W2` em `READY`, commit `ee7749f`, raiz `cloud`; [domínio principal](https://jarvis-ten-pi-14.vercel.app/) |
+| HTTP público | Painel, assets JavaScript, `/api/config` e `/api/health`: 200; `/api/state` sem login: 401 JSON. Health indica `aiInstalled: false`, conforme adiamento da chave |
+| Retorno do login | Site URL Supabase configurada para `https://jarvis-ten-pi-14.vercel.app/` |
 
-Resultados locais com mocks, configuração remota e jornadas autenticadas são registrados separadamente. O CI possui dois jobs de até dez minutos, acesso `contents: read` e actions fixadas em SHAs verificados. Executa em push para `main` e pull requests; sua execução no GitHub ainda precisa ser observada.
+Resultados locais com mocks, configuração remota e jornadas autenticadas são registrados separadamente. O CI possui dois jobs de até dez minutos, acesso `contents: read` e actions fixadas em SHAs verificados. Executa em push para `main` e pull requests; os dois jobs do commit `ee7749f` passaram no GitHub.
+
+O script `supabase/verify.sql` reproduz os testes de banco com usuários sintéticos numa transação revertida ao final. Execute-o integralmente em um projeto de teste preparado com o schema; ele não valida e-mail, senha, navegação ou respostas da Gemini API. A verificação final também confirmou RLS nas seis tabelas e ausência de usuários e notas sintéticos após o rollback.
 
 ## Relação com o Windows
 

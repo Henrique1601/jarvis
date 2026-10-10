@@ -2,13 +2,15 @@
 
 Assistente pessoal para conversar sobre estudos e projetos, guardar notas e organizar tarefas. Este repositório reúne a nova aplicação web com Supabase e Gemini API e a versão local para Windows com cofre Markdown compatível com Obsidian.
 
-Repositório público: [Henrique1601/jarvis](https://github.com/Henrique1601/jarvis). A base Windows está publicada na branch `main`; a entrega web será registrada após os checks finais.
+Repositório público: [Henrique1601/jarvis](https://github.com/Henrique1601/jarvis), com as aplicações Windows e web na branch `main`.
+
+Aplicação publicada: [abrir Jarvis online](https://jarvis-ten-pi-14.vercel.app/). Crie sua conta com o e-mail autorizado e confirme o e-mail antes de entrar. A chave Gemini será configurada depois; memória e tarefas não dependem dela.
 
 ## Duas aplicações, dados separados
 
 | Aplicação | Como funciona | Situação |
 | --- | --- | --- |
-| Web 0.5.0 em `cloud/` | Frontend e API na Vercel; autenticação e banco Supabase; Gemini API no servidor | Build e 15 testes locais aprovados; schema real, login, Gemini e deploy ainda pendentes |
+| Web 0.5.0 em `cloud/` | Frontend e API na Vercel; autenticação e banco Supabase; Gemini API no servidor | Publicada; testes aprovados; primeiro login aguardando usuário e IA aguardando chave |
 | Windows em `jarvis-gemini/` | Python, painel local, arquivos Markdown, tarefas, histórico e backup | Prévia 0.4.0; recursos locais disponíveis, conversa Antigravity bloqueada |
 
 A versão web usa banco remoto. A versão Windows conserva o cofre e o estado no computador. **Sincronização entre as duas versões ainda não foi implementada.** Publicar o repositório ou o site não envia automaticamente o cofre do PC para a nuvem.
@@ -39,8 +41,8 @@ Credenciais, cofre de uso, histórico pessoal, dependências, backups e binário
 
 ## Verificação e publicação
 
-Os 42 testes Windows e os 15 testes do backend web passaram nesta alteração. O build web com `npm ci` e `npm run build` passou, com auditoria de dependências sem vulnerabilidades conhecidas reportadas. Os testes do backend usam serviços simulados; banco real, autenticação, persistência, isolamento e resposta Gemini exigem verificações próprias. Os resultados históricos Windows estão em [VALIDACAO.md](jarvis-gemini/VALIDACAO.md).
+Os 42 testes Windows e os 23 testes web (15 de backend e 8 de frontend) passaram nesta alteração. O build web com `npm ci` e `npm run build` passou, com auditoria de dependências sem vulnerabilidades conhecidas reportadas. O schema foi aplicado no Supabase real e testes transacionais com três usuários sintéticos, revertidos ao terminar, verificaram conflitos, histórico, tarefas, chat atômico, quotas, backup e isolamento RLS/RPC. Login pela interface, persistência pela aplicação publicada e resposta Gemini ainda exigem verificações próprias. Os resultados históricos Windows estão em [VALIDACAO.md](jarvis-gemini/VALIDACAO.md).
 
-O [workflow CI](.github/workflows/ci.yml) executa a suíte Python 3.14 no Windows e testes/build Node.js 24 no Ubuntu em push para `main` e pull requests. As actions usam SHAs verificados e permissão somente de leitura do código. Criar o workflow não confirma que houve execução bem-sucedida no GitHub; os testes não usam credenciais reais.
+O [workflow CI](.github/workflows/ci.yml) executa a suíte Python 3.14 no Windows e testes/build Node.js 24 no Ubuntu em push para `main` e pull requests. As actions usam SHAs verificados e permissão somente de leitura do código. [Os dois jobs passaram no GitHub](https://github.com/Henrique1601/jarvis/actions/runs/38057036402) para o commit `ee7749f`; os testes não usam credenciais reais.
 
-O projeto Vercel usa Root Directory `cloud`; o projeto Supabase foi criado em São Paulo. A configuração e os passos para schema, allowlists e segredos pela interface estão em [cloud/README.md](cloud/README.md). A chave Gemini permanece pendente de inserção segura pelo usuário. O endereço e as verificações do deploy serão registrados após publicação; status pronto não confirma sozinho as jornadas autenticadas.
+O projeto Vercel usa Root Directory `cloud`; o projeto Supabase foi criado em São Paulo, com schema e allowlist administrativa preparados. A configuração está em [cloud/README.md](cloud/README.md). O usuário escolheu configurar a IA depois: memória e tarefas não exigem chave Gemini; conversa requer essa configuração. O deployment de produção do commit `ee7749f` ficou `READY`: painel, assets JavaScript, configuração pública e health retornaram 200 no domínio principal; `/api/state` sem sessão retornou 401. O retorno de autenticação Supabase foi configurado para esse domínio. Login e persistência pela interface aguardam a criação segura da conta pelo usuário.
