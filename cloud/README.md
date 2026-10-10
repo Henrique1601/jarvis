@@ -104,14 +104,14 @@ Não há túnel para o computador Windows nesta arquitetura. O serviço local pe
 | Suíte Windows nesta alteração | 42 testes aprovados na última execução, em 14,871 s; uma execução intermediária falhou isoladamente no teste de concorrência, e a repetição passou |
 | Schema no projeto Supabase real | Migração `jarvis_cloud_v1` aplicada; allowlist do proprietário inserida pela interface administrativa |
 | Operações e isolamento no Postgres real | Aprovados em transação com três usuários sintéticos e rollback: conflito de edição, histórico/restauração, tarefas, par atômico de mensagens, rejeição de reserva reutilizada e fontes excessivas, limite de 20 tentativas e rejeição da 21ª, backup completo, escrita direta recusada, RLS/RPC entre usuários, allowlist e RPC anônimo |
-| Login e persistência pela interface publicada | Conta criada e e-mail confirmado pelo usuário; sessão entre abas corrigida em `c38746a`. Nova entrada e jornada de persistência aguardam validação; testes SQL não substituem essa jornada |
+| Login e persistência pela interface publicada | Conta criada e e-mail confirmado pelo usuário; sessão entre abas e recuperação inicial corrigidas. Interface real exibiu diagnóstico de credenciais recusadas, sem dados brutos do provedor. Nova entrada pelo proprietário e jornada de persistência aguardam validação; testes SQL não substituem essa jornada |
 | Resposta autenticada Gemini API | Pendente; usuário escolheu configurar a chave depois |
-| GitHub | Correção de sessão `c38746a` publicada em `main`; ambos os jobs de [CI aprovados](https://github.com/Henrique1601/jarvis/actions/runs/38057834023) |
-| Vercel | Deploy de produção `dpl_8qgXvygDyDVGenm8wUazxoYobU9M` em `READY`, commit `c38746a`, raiz `cloud`; [domínio principal](https://jarvis-ten-pi-14.vercel.app/) |
+| GitHub | Correção de sessão `3ad639c` publicada em `main`; ambos os jobs de [CI aprovados](https://github.com/Henrique1601/jarvis/actions/runs/38058458715) |
+| Vercel | Deploy de produção `dpl_BPPMA3sPA2GXXX5EKkwtcGNCwjNj` em `READY`, commit `3ad639c`, raiz `cloud`; [domínio principal](https://jarvis-ten-pi-14.vercel.app/) |
 | HTTP público | Painel, assets JavaScript, `/api/config` e `/api/health`: 200; `/api/state` sem login: 401 JSON. Health indica `aiInstalled: false`, conforme adiamento da chave |
 | Retorno do login | Site URL Supabase configurada para `https://jarvis-ten-pi-14.vercel.app/` |
 
-Resultados locais com mocks, configuração remota e jornadas autenticadas são registrados separadamente. O CI possui dois jobs de até dez minutos, acesso `contents: read` e actions fixadas em SHAs verificados. Executa em push para `main` e pull requests; os dois jobs do commit `c38746a` passaram no GitHub.
+Resultados locais com mocks, configuração remota e jornadas autenticadas são registrados separadamente. O CI possui dois jobs de até dez minutos, acesso `contents: read` e actions fixadas em SHAs verificados. Executa em push para `main` e pull requests; os dois jobs do commit `3ad639c` passaram no GitHub.
 
 O script `supabase/verify.sql` reproduz os testes de banco com usuários sintéticos numa transação revertida ao final. Execute-o integralmente em um projeto de teste preparado com o schema; ele não valida e-mail, senha, navegação ou respostas da Gemini API. A verificação final também confirmou RLS nas seis tabelas e ausência de usuários e notas sintéticos após o rollback.
 
