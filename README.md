@@ -10,7 +10,7 @@ Aplicação publicada: [abrir Jarvis online](https://jarvis-ten-pi-14.vercel.app
 
 | Aplicação | Como funciona | Situação |
 | --- | --- | --- |
-| Web em `cloud/` | Frontend e API na Vercel; autenticação, dados e fila Supabase; respostas por componente Windows | Login, notas, tarefas e histórico já verificados; nova fila em validação; execução Antigravity bloqueada |
+| Web em `cloud/` | Frontend e API na Vercel; autenticação, dados e fila Supabase; respostas por componente Windows | Fila publicada e envio/recarga/cancelamento verificados; execução Antigravity bloqueada |
 | Windows em `jarvis-gemini/` | Python, painel local, arquivos Markdown, tarefas, histórico e backup | Prévia 0.4.0; recursos locais disponíveis, conversa Antigravity bloqueada |
 
 A versão web usa banco remoto. A versão Windows conserva o cofre e o estado no computador. **Sincronização entre as duas versões ainda não foi implementada.** Publicar o repositório ou o site não envia automaticamente o cofre do PC para a nuvem.
@@ -41,7 +41,7 @@ Credenciais, cofre de uso, histórico pessoal, dependências, backups e binário
 
 ## Verificação e publicação
 
-Na implementação 0.6, passaram 66 testes cloud (29 de backend e 37 de frontend/build), o build e 65 testes Windows. A migração aditiva `jarvis_cloud_v2_antigravity_queue` foi aplicada no Supabase com execução desativada; a verificação transacional real da fila passou com rollback e preservou os dados anteriores. Os resultados Windows estão em [VALIDACAO.md](jarvis-gemini/VALIDACAO.md). Publicação 0.6 e jornada real de envio/status/cancelamento aguardam confirmação neste registro. A execução Antigravity permanece bloqueada pela restrição de ferramentas.
+Na implementação 0.6, passaram 66 testes cloud (29 de backend e 37 de frontend/build), o build e 65 testes Windows. A migração aditiva `jarvis_cloud_v2_antigravity_queue` foi aplicada no Supabase com execução desativada; a verificação transacional real da fila passou com rollback e preservou os dados anteriores. A versão foi publicada na Vercel; envio, posição, prazo de sete dias, recarga e cancelamento foram verificados pela interface autenticada. [Os dois jobs de CI passaram](https://github.com/Henrique1601/jarvis/actions/runs/38082121979) para `d95315d`. Os resultados Windows estão em [VALIDACAO.md](jarvis-gemini/VALIDACAO.md). A execução Antigravity permanece bloqueada pela restrição de ferramentas; resposta real e retomada após reinício ainda não foram validadas.
 
 A versão 0.5 anterior teve 42 testes Windows e 37 testes web aprovados, schema básico aplicado e isolamento RLS/RPC verificado em transações revertidas. Login e persistência pela interface publicada confirmaram sessão após recarga, criação/edição/restauração de nota e tarefa concluída. O deployment do commit `3ad639c` ficou `READY` e [os dois jobs de CI passaram](https://github.com/Henrique1601/jarvis/actions/runs/38058458715). Esses resultados são históricos e não comprovam a entrega da fila 0.6. O [registro completo](cloud/README.md) preserva as evidências anteriores.
 

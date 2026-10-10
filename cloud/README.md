@@ -2,7 +2,7 @@
 
 O painel online autentica a conta e guarda memória, tarefas, conversa e pedidos no Supabase. A versão 0.6 implementa uma fila: o navegador pode enviar pedidos mesmo com o computador desligado; um worker Windows consulta a fila por HTTPS e utiliza o Antigravity com o login Google oficial. Vercel não executa o CLI nem acessa o disco do computador.
 
-**Situação atual:** implementação e testes locais da fila concluídos; migração da fila no Supabase, publicação 0.6 e jornada real dessa fila ainda não estão confirmadas neste registro. O [endereço publicado existente](https://jarvis-ten-pi-14.vercel.app/) corresponde à entrega anterior até confirmação de um novo deploy. **Processamento Antigravity bloqueado:** o CLI real 1.3.3 anunciou 60 ferramentas apesar do perfil `tools: []`. Nenhum pedido ou contexto foi enviado nesse teste. Pedidos podem aguardar liberação, mas expiram após sete dias; não há respostas fictícias nem fallback automático para Gemini API.
+**Situação atual:** fila 0.6 [publicada](https://jarvis-ten-pi-14.vercel.app/), migração aplicada e envio, persistência após recarga e cancelamento verificados na conta autenticada. **Processamento Antigravity bloqueado:** o CLI real 1.3.3 anunciou 60 ferramentas apesar do perfil `tools: []`. Nenhum pedido ou contexto foi enviado nesse teste. Pedidos podem aguardar liberação, mas expiram após sete dias; não há respostas fictícias nem fallback automático para Gemini API.
 
 Veja [Antigravity no Windows](ANTIGRAVITY-WINDOWS.md) para configurar o componente e entender a restrição atual.
 
@@ -93,16 +93,19 @@ O worker inicia conexões HTTPS para a nuvem. Não é necessário túnel nem por
 - Worker respeita gates antes de buscar/iniciar pedido; resultado incerto não provoca geração automática repetida; conclusão persiste o par de mensagens atomicamente.
 - Processamento real só será considerado aprovado após o CLI comprovar ausência de ferramentas e uma jornada autenticada completa. A versão atual permanece bloqueada nesse critério.
 
-## Verificação local 0.6 — provisória
+## Registro de validação 0.6 — 10/10/2026
 
 | Verificação | Resultado |
 | --- | --- |
 | Testes cloud | 66 aprovados: 29 backend e 37 frontend/build, em aproximadamente 0,71 s; dados sintéticos e mocks |
 | Build e sintaxe JavaScript | `npm run build` e `node --check` de platform/app/workspace aprovados |
-| Suíte Windows completa da fila | Aguardando consolidar a execução final; não inferida dos testes cloud |
-| Migração da fila e isolamento no Supabase real | Aguardando confirmação específica da 0.6 |
-| Publicação e jornada da fila na Vercel | Aguardando confirmação específica da 0.6 |
+| Suíte Windows completa da fila | 65 testes aprovados em 12,044 s; DPAPI e mutex reais com dados sintéticos |
+| Migração da fila e isolamento no Supabase real | `jarvis_cloud_v2_antigravity_queue` aplicada; `verify-queue.sql` passou com rollback; dados anteriores preservados e execução desativada |
+| Publicação e jornada da fila na Vercel | Commit `d95315d`, deployment `dpl_G5eWfhXSwWLUFoE5MLjFtb1axvhy` READY. Pedido sintético enviado sem worker; posição 1 e prazo de sete dias confirmados após recarga; cancelamento persistido após outra recarga. Nenhuma mensagem gerada; nota e tarefa anteriores preservadas |
+| GitHub CI | [Dois jobs aprovados](https://github.com/Henrique1601/jarvis/actions/runs/38082121979) para `d95315d` |
 | Execução Antigravity autenticada | Bloqueada pela lista real de ferramentas; nenhum pedido enviado |
+
+Inicialização ao logon foi implementada, mas não registrada. Configuração real de credenciais, resposta autenticada e retomada real após reinício permanecem pendentes até a comprovação do controle de ferramentas. O pedido sintético cancelado foi preservado como registro de validação. A inclusão dos pedidos no backup foi verificada no Postgres real; um arquivo baixado pelo navegador não foi inspecionado nesta etapa.
 
 ## Registro histórico — entrega 0.5 com Gemini API
 
