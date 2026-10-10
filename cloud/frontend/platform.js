@@ -5,6 +5,14 @@ let unlocked = false;
 let recovery = false;
 let authorizationAttempt = 0;
 let activeAccount = null;
+let authorized = false;
+let latestState = null;
+let stateFlight = null;
+let pollTimer = null;
+let pendingSubmit = null;
+let submitting = false;
+const stateListeners = new Set();
+const pendingJob = job => job.status === 'queued' || job.status === 'processing';
 const ready = new Promise(resolve => { resolveReady = resolve; });
 const message = text => { byId('auth-notice').textContent = text; };
 function controls(disabled) {
@@ -23,6 +31,12 @@ function loginError(error) {
 }
 function lock(messageText) {
   authorizationAttempt++;
+  authorized = false;
+  latestState = null;
+  stateFlight = null;
+  pendingSubmit = null;
+  stopPolling();
+  for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
   byId('cloud-auth').hidden = false;
   document.body.classList.add('cloud-locked');
   if (messageText) message(messageText);
@@ -54,7 +68,12 @@ async function resumeSession() {
 }
 async function unlock(session) {
   if (!session || recovery) return false;
+  const account = session.user.id || session.user.email;
+  if (unlocked && activeAccount !== account) {
+    lock(); location.reload(); return false;
+  }
   const attempt = ++authorizationAttempt;
+  let verifiedState;
   try {
     // Use the supplied token directly: never await another SDK auth operation
     // from an auth event, and authorize the account before showing private UI.
@@ -65,21 +84,19 @@ async function unlock(session) {
       lock(result.error || 'Esta conta não está autorizada a acessar o Jarvis.');
       return false;
     }
+    verifiedState = result;
   } catch {
     if (attempt === authorizationAttempt) lock('Não foi possível confirmar o acesso. Tente entrar novamente.');
     return false;
   }
-  const account = session.user.id || session.user.email;
-  if (unlocked && activeAccount !== account) {
-    // Changing the shared login must not reveal the previous account's editor
-    // or notes while the new account loads.
-    lock(); location.reload(); return false;
-  }
   activeAccount = account;
+  authorized = true;
+  latestState = { ...verifiedState, jobs: verifiedState.jobs || latestState?.jobs || [] };
   byId('cloud-auth').hidden = true;
   document.body.classList.remove('cloud-locked');
   byId('cloud-user').textContent = session.user.email;
   if (!unlocked) { unlocked = true; resolveReady(); }
+  schedulePoll();
   return true;
 }
 async function accessToken() {
@@ -89,6 +106,9 @@ async function accessToken() {
     throw Error('Entre na sua conta para continuar.');
   }
   let session = data.session;
+  if (activeAccount && (session.user.id || session.user.email) !== activeAccount) {
+    lock(); location.reload(); throw Error('Sua conta mudou. Aguarde a página recarregar.');
+  }
   if (session.expires_at * 1000 < Date.now() + 30000) {
     const result = await client.auth.refreshSession();
     if (result.error || !result.data.session) {
@@ -101,23 +121,150 @@ async function accessToken() {
 }
 async function request(path, body) {
   if (!client) throw Error('O serviço online precisa ser configurado.');
+  if (!authorized || recovery) throw Error('Entre na sua conta para continuar.');
+  const attempt = authorizationAttempt;
   const token = await accessToken();
-  const response = await fetch('/api/' + path, {
+  if (attempt !== authorizationAttempt || !authorized) throw Error('Sua sessão mudou. Entre novamente.');
+  let response, result;
+  try {
+    response = await fetch('/api/' + path, {
     method: body === undefined ? 'GET' : 'POST',
     headers: { Authorization: 'Bearer ' + token, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) })
-  });
-  const result = await response.json();
+    });
+    result = await response.json();
+  } catch { throw Error('Não foi possível confirmar o pedido. Confira a conexão e tente novamente.'); }
+  if (attempt !== authorizationAttempt || !authorized) throw Error('Sua sessão mudou. Entre novamente.');
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
       lock(result.error || 'Esta conta não está autorizada. Confira o e-mail configurado para o Jarvis.');
     }
-    throw Error(result.error || 'Não foi possível concluir o pedido.');
+    const error = Error(result.error || 'Não foi possível concluir o pedido.'); error.status = response.status; throw error;
   }
   return result;
 }
+function stopPolling() {
+  if (pollTimer !== null) clearTimeout(pollTimer);
+  pollTimer = null;
+}
+function schedulePoll() {
+  stopPolling();
+  if (authorized && !recovery && !document.hidden && latestState?.jobs?.some(pendingJob))
+    pollTimer = setTimeout(pollState, 5000);
+}
+async function loadState() {
+  if (!stateFlight) {
+    const attempt = authorizationAttempt;
+    const flight = request('state').then(result => {
+      if (!authorized || recovery || attempt !== authorizationAttempt) throw Error('Sua sessão mudou. Entre novamente.');
+      // A partial state during a queue outage deliberately omits jobs; retain
+      // the last known requests rather than implying they were removed.
+      if (!Array.isArray(result.jobs) && latestState?.jobs) result = { ...result, jobs: latestState.jobs };
+      latestState = result; schedulePoll(); return result;
+    })
+      .finally(() => { if (stateFlight === flight) stateFlight = null; });
+    stateFlight = flight;
+  }
+  return stateFlight;
+}
+async function pollState() {
+  stopPolling();
+  if (!authorized || recovery || document.hidden) return;
+  try {
+    const result = await loadState();
+    if (authorized && !recovery && !document.hidden) for (const listener of stateListeners) listener(result);
+  } catch {
+    if (authorized) byId('notice').textContent = 'Atualização da fila indisponível. Tentaremos novamente; seus pedidos permanecem guardados.';
+  } finally { schedulePoll(); }
+}
+const reasonLabels = {
+  auth_required: 'Entre com sua conta Google no Antigravity do Windows.',
+  policy_blocked: 'Acesso à IA bloqueado. Verifique as permissões do Antigravity no Windows.',
+  quota_exceeded: 'Limite de uso atingido. Aguarde a cota da sua conta Google renovar.',
+  connection_error: 'Sem conexão com o Windows. Abra o worker para continuar.',
+  execution_failed: 'Não foi possível processar este pedido no Windows.',
+  result_uncertain: 'Não foi possível confirmar o resultado. Confira o Windows antes de enviar novamente.',
+  timeout: 'O processamento excedeu o tempo disponível.',
+  device_revoked: 'Este Windows foi desconectado. Conecte o dispositivo novamente.',
+  cancelled: 'Pedido cancelado.', expired: 'Pedido expirado após 7 dias.'
+};
+Object.assign(reasonLabels, {
+  login_required: reasonLabels.auth_required,
+  policy_unverified: 'Antigravity bloqueado: restrição de ferramentas não comprovada. Pedidos aguardam liberação e expiram em 7 dias.',
+  cli_missing: 'Instale o Antigravity CLI no Windows antes de iniciar o worker.',
+  offline: reasonLabels.connection_error, busy: 'Windows processando um pedido.',
+  runtime_error: reasonLabels.execution_failed, revoked: reasonLabels.device_revoked,
+  context_error: 'Não foi possível preparar a memória deste pedido.',
+  execution_uncertain: 'Execução interrompida; resultado incerto. Reenvie somente se desejar.',
+  schema_not_ready: 'Fila em preparação. Suas notas continuam disponíveis.'
+});
+function workerLabel(worker = {}) {
+  if (worker.reason === 'policy_unverified') return reasonLabels.policy_unverified;
+  if (worker.status === 'ready') return 'Windows conectado';
+  if (worker.status === 'processing') return 'Windows processando um pedido';
+  if (worker.status === 'offline' || !worker.status) return 'Windows offline · pedidos ficam na fila';
+  return reasonLabels[worker.reason] || reasonLabels[worker.status] || 'Worker do Windows pausado. Confira o aplicativo no computador.';
+}
+async function submitChat(text) {
+  if (submitting) throw Error('Aguarde o envio deste pedido.');
+  if (!pendingSubmit || pendingSubmit.text !== text) pendingSubmit = { text, requestId: crypto.randomUUID() };
+  const submission = pendingSubmit;
+  submitting = true;
+  try {
+    const result = await request('chat', submission);
+    if (pendingSubmit === submission) pendingSubmit = null;
+    return result;
+  } catch (error) {
+    // A lost/5xx response may follow acceptance; retry the same UUID to avoid
+    // enqueuing twice. A definite client rejection can use a fresh request.
+    if (error.status && error.status < 500 && pendingSubmit === submission) pendingSubmit = null;
+    throw error;
+  } finally { submitting = false; }
+}
+function renderJobs(box, data) {
+  box.querySelector('.cloud-queue')?.remove();
+  const list = document.createElement('section'); list.className = 'cloud-queue'; list.setAttribute('aria-label', 'Fila de pedidos');
+  const info = document.createElement('p'); info.className = 'cloud-worker'; info.textContent = workerLabel(data.worker); list.append(info);
+  const setup = document.createElement('p'); setup.className = 'muted';
+  setup.textContent = 'Os pedidos aguardam até 7 dias. No Windows, execute CONFIGURAR-WORKER.bat e inicie o worker. O login Google é feito no Antigravity, fora deste painel.';
+  list.append(setup);
+  const labels = { queued: 'Na fila', processing: 'Processando no Windows', failed: 'Não concluído', cancelled: 'Cancelado', expired: 'Expirado' };
+  const jobs = [...new Map((data.jobs || []).map(job => ({ ...job, id: job.id || job.jobId }))
+    .filter(job => job.id && job.status !== 'completed').map(job => [job.id, job])).values()]
+    .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)) || String(a.id).localeCompare(String(b.id)));
+  for (const job of jobs) {
+    const row = document.createElement('article'); row.className = 'cloud-job';
+    const text = document.createElement('div'); text.textContent = job.text;
+    const status = document.createElement('strong'); status.textContent = labels[job.status] || 'Estado indisponível';
+    const detail = document.createElement('small');
+    detail.textContent = (job.position ? `Posição ${job.position} · ` : '') + 'Prazo de 7 dias · até ' + new Date(job.expiresAt).toLocaleString('pt-BR');
+    row.append(text, status, detail);
+    if (job.errorCode) { const error = document.createElement('p'); error.textContent = reasonLabels[job.errorCode] || reasonLabels.execution_failed; row.append(error); }
+    if (pendingJob(job)) {
+      const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'subtle'; cancel.textContent = 'Cancelar pedido';
+      cancel.onclick = async () => {
+        cancel.disabled = true;
+        try {
+          await request('chat-cancel', { jobId: job.id });
+          const result = await loadState();
+          if (!authorized || recovery) return;
+          renderJobs(box, result);
+          for (const listener of stateListeners) listener(result);
+        } catch (error) { if (authorized) byId('notice').textContent = error.message; }
+        finally { cancel.disabled = false; }
+      };
+      row.append(cancel);
+    }
+    list.append(row);
+  }
+  box.append(list);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopPolling(); else void pollState(); });
+window.addEventListener('online', () => { void pollState(); });
 window.jarvisPlatform = {
-  ready, request, state: () => request('state'),
+  ready, request, state: loadState, submitChat, renderJobs, workerLabel,
+  active: () => authorized && !recovery,
+  onState(listener) { stateListeners.add(listener); return () => stateListeners.delete(listener); },
   async backup() {
     const result = await request('backup', {});
     const url = URL.createObjectURL(new Blob([JSON.stringify(result.backup, null, 2)], { type: 'application/json' }));
@@ -137,7 +284,7 @@ logout.onclick = async () => {
     const result = await client?.auth.signOut({ scope: 'local' });
     if (!result || result.error) throw Error('Não foi possível sair. Tente novamente.');
     // Clear private UI and editor state only after the SDK confirms sign out.
-    location.reload();
+    lock(); location.reload();
   } catch {
     byId('notice').textContent = 'Não foi possível sair. Sua sessão continua aberta; tente novamente.';
   } finally { logout.disabled = false; }

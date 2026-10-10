@@ -1,33 +1,33 @@
 # Jarvis — online e Windows
 
-Assistente pessoal para conversar sobre estudos e projetos, guardar notas e organizar tarefas. Este repositório reúne a nova aplicação web com Supabase e Gemini API e a versão local para Windows com cofre Markdown compatível com Obsidian.
+Assistente pessoal para conversar sobre estudos e projetos, guardar notas e organizar tarefas. Este repositório reúne o painel online com Supabase, a fila para Antigravity no Windows e a versão local com cofre Markdown compatível com Obsidian.
 
 Repositório público: [Henrique1601/jarvis](https://github.com/Henrique1601/jarvis), com as aplicações Windows e web na branch `main`.
 
-Aplicação publicada: [abrir Jarvis online](https://jarvis-ten-pi-14.vercel.app/). Crie sua conta com o e-mail autorizado e confirme o e-mail antes de entrar. A chave Gemini será configurada depois; memória e tarefas não dependem dela.
+Aplicação publicada: [abrir Jarvis online](https://jarvis-ten-pi-14.vercel.app/). Crie sua conta com o e-mail autorizado e confirme o e-mail antes de entrar. Memória e tarefas não dependem da IA. A troca para Antigravity usa uma fila, mas a execução permanece bloqueada enquanto o CLI não demonstrar ausência de ferramentas.
 
 ## Duas aplicações, dados separados
 
 | Aplicação | Como funciona | Situação |
 | --- | --- | --- |
-| Web 0.5.0 em `cloud/` | Frontend e API na Vercel; autenticação e banco Supabase; Gemini API no servidor | Publicada; login, notas, tarefas e histórico verificados pela interface; IA aguardando chave |
+| Web em `cloud/` | Frontend e API na Vercel; autenticação, dados e fila Supabase; respostas por componente Windows | Login, notas, tarefas e histórico já verificados; nova fila em validação; execução Antigravity bloqueada |
 | Windows em `jarvis-gemini/` | Python, painel local, arquivos Markdown, tarefas, histórico e backup | Prévia 0.4.0; recursos locais disponíveis, conversa Antigravity bloqueada |
 
 A versão web usa banco remoto. A versão Windows conserva o cofre e o estado no computador. **Sincronização entre as duas versões ainda não foi implementada.** Publicar o repositório ou o site não envia automaticamente o cofre do PC para a nuvem.
 
 ## Usar a versão web
 
-A aplicação web é uma implementação com autenticação, persistência e IA por API; não substitui o backend por respostas demonstrativas. Confira [configuração e deploy](cloud/README.md) para preparar Supabase, Gemini API e Vercel.
+A aplicação web usa autenticação e dados reais. Confira [configuração e deploy](cloud/README.md) e [Antigravity no Windows](cloud/ANTIGRAVITY-WINDOWS.md). Pedidos podem aguardar até sete dias, com até cinco pendentes por conta. O computador consulta a fila por HTTPS; nenhuma porta pública ou túnel é necessário.
 
-O acesso às APIs privadas exige sessão Supabase, email confirmado e presença em `ALLOWED_EMAILS`. A lista administrativa do banco também precisa conter os mesmos emails; RLS e RPCs restringem os registros ao proprietário autorizado. A chave Gemini fica no servidor; senha, tokens de sessão e segredos não entram no repositório nem na conversa. Código público não torna os dados dos usuários públicos.
+O acesso às APIs privadas exige sessão Supabase, email confirmado e presença em `ALLOWED_EMAILS`. A lista administrativa do banco também precisa conter os mesmos emails; RLS e RPCs restringem os registros ao proprietário autorizado. O componente Windows exige sessão da conta e credencial revogável de dispositivo, protegidas pelo Windows. Senha, tokens e segredos não entram no repositório nem na conversa. Código público não torna os dados dos usuários públicos.
 
-O modelo e o acesso à Gemini API são configurados separadamente da assinatura Google AI Pro. Há regras próprias de quota, Free Tier elegível e tiers pagos; confira a [documentação de acesso e cobrança](https://ai.google.dev/gemini-api/docs/billing) antes de habilitar uso real.
+A IA proposta utiliza o login Google oficial do Antigravity e os limites do plano da conta. Não habilita gastos adicionais nem fallback para Gemini API automaticamente. Somente notas, tarefas e conversa online são usadas no contexto; o cofre Windows permanece separado.
 
 ## Jarvis para Windows
 
 Abra [o guia Windows](jarvis-gemini/README.md). `INICIAR.bat` abre o painel em `http://127.0.0.1:8765`; o cofre, tarefas, edição com conflito, histórico, restauração e backup permanecem locais.
 
-A prévia 0.4.0 prepara Antigravity CLI 1.3.2, mas **a conversa está bloqueada antes de enviar pedido e notas**: o CLI real anunciou ferramentas apesar do perfil `tools: []`. Fazer login sozinho não resolve esse bloqueio. A nova integração web com Gemini API não altera essa implementação local nem usa seu login Antigravity.
+A instalação atual prepara Antigravity CLI 1.3.3, mas **a conversa está bloqueada antes de enviar pedido e notas**: o CLI real anunciou 60 ferramentas apesar do perfil `tools: []`. Fazer login sozinho não resolve esse bloqueio. O worker online usa workspace separado por execução e não lê o cofre local.
 
 Whisper/transcrição e SAPI/leitura reais ainda dependem de validação no Windows. A web não herda automaticamente o áudio, o executável ou os arquivos do PC.
 
@@ -41,8 +41,8 @@ Credenciais, cofre de uso, histórico pessoal, dependências, backups e binário
 
 ## Verificação e publicação
 
-Os 42 testes Windows e os 37 testes web (15 de backend e 22 de frontend) passaram nesta alteração. O build web com `npm ci` e `npm run build` passou, com auditoria de dependências sem vulnerabilidades conhecidas reportadas. O schema foi aplicado no Supabase real e testes transacionais com três usuários sintéticos, revertidos ao terminar, verificaram conflitos, histórico, tarefas, chat atômico, quotas, backup e isolamento RLS/RPC. Login e persistência pela interface publicada foram verificados com dados de teste: criação, edição, histórico e restauração de nota, tarefa concluída e recarga mantendo sessão e dados. A resposta real Gemini continua pendente. Os resultados históricos Windows estão em [VALIDACAO.md](jarvis-gemini/VALIDACAO.md).
+Na implementação 0.6, passaram 66 testes cloud (29 de backend e 37 de frontend/build), o build e 65 testes Windows. A migração aditiva `jarvis_cloud_v2_antigravity_queue` foi aplicada no Supabase com execução desativada; a verificação transacional real da fila passou com rollback e preservou os dados anteriores. Os resultados Windows estão em [VALIDACAO.md](jarvis-gemini/VALIDACAO.md). Publicação 0.6 e jornada real de envio/status/cancelamento aguardam confirmação neste registro. A execução Antigravity permanece bloqueada pela restrição de ferramentas.
 
-O [workflow CI](.github/workflows/ci.yml) executa a suíte Python 3.14 no Windows e testes/build Node.js 24 no Ubuntu em push para `main` e pull requests. As actions usam SHAs verificados e permissão somente de leitura do código. [Os dois jobs passaram no GitHub](https://github.com/Henrique1601/jarvis/actions/runs/38058458715) para o commit `3ad639c`; os testes não usam credenciais reais.
+A versão 0.5 anterior teve 42 testes Windows e 37 testes web aprovados, schema básico aplicado e isolamento RLS/RPC verificado em transações revertidas. Login e persistência pela interface publicada confirmaram sessão após recarga, criação/edição/restauração de nota e tarefa concluída. O deployment do commit `3ad639c` ficou `READY` e [os dois jobs de CI passaram](https://github.com/Henrique1601/jarvis/actions/runs/38058458715). Esses resultados são históricos e não comprovam a entrega da fila 0.6. O [registro completo](cloud/README.md) preserva as evidências anteriores.
 
-O projeto Vercel usa Root Directory `cloud`; o projeto Supabase foi criado em São Paulo, com schema e allowlist administrativa preparados. A configuração está em [cloud/README.md](cloud/README.md). O usuário escolheu configurar a IA depois: memória e tarefas não exigem chave Gemini; conversa requer essa configuração. O deployment de produção do commit `3ad639c` ficou `READY`; o domínio principal disponibiliza o painel, assets JavaScript, configuração pública e health, e `/api/state` sem sessão recusa acesso com 401. O retorno de autenticação Supabase foi configurado para esse domínio. A conta foi criada, confirmada e acessada pelo usuário. A validação pela interface confirmou a sessão após recarga, nota criada/editada/restaurada e tarefa concluída persistidas. Uma nota identificada como teste e uma tarefa concluída foram mantidas na conta; o cofre local Windows permaneceu separado.
+O [workflow CI](.github/workflows/ci.yml) executa Python 3.14 no Windows e testes/build Node.js 24 no Ubuntu, sem credenciais reais. A Vercel usa Root Directory `cloud`; o Supabase existente fica em São Paulo. A configuração e os critérios da fila estão em [cloud/README.md](cloud/README.md). O provedor atual proposto é Antigravity no Windows, sem exigência de chave Gemini nem fallback automático. Memória e tarefas continuam independentes da IA e o cofre local não é enviado automaticamente à nuvem.

@@ -2,8 +2,10 @@ import { ApiError, body, send, settings, text, uuid, revision } from '../lib/htt
 import { Database, bearer } from '../lib/supabase.mjs';
 import { prepareContext, rankNotes } from '../lib/context.mjs';
 import { generate } from '../lib/gemini.mjs';
+import { queueState, registerWorker, claimWorker, workerCredentials, requireWorkerProvider,
+  workerAttempt, workerHeartbeat, completion, FAILURE_CODES } from '../lib/queue.mjs';
 
-export const VERSION = '0.5.0';
+export const VERSION = '0.6.0';
 const GUIDE = '# Memória online do Jarvis\n\nAs notas desta conta ficam no Supabase, isoladas por usuário. '
   + 'O chat usa apenas trechos selecionados e não executa ferramentas. '
   + 'Edite uma nota pela interface; conflitos preservam a versão atual. '
@@ -26,7 +28,11 @@ export function createHandler({ env = process.env, fetcher = fetch } = {}) {
           : { configured: false, reason: config.reason });
       if (req.method === 'GET' && path === '/api/health')
         return send(res, config.configured ? 200 : 503, { ok: config.configured, cloud: true, version: VERSION,
-          provider: 'Gemini API', aiInstalled: config.ai, ...(config.configured ? {} : { error: config.reason }) });
+          provider: config.provider, aiInstalled: config.ai,
+          configurationOnly: true,
+          worker: { status: config.provider === 'antigravity_windows' && !config.antigravityEnabled ? 'blocked' : 'offline',
+            lastSeen: null, reason: config.provider === 'antigravity_windows' && !config.antigravityEnabled ? 'policy_unverified' : 'offline' },
+          ...(config.configured ? {} : { error: config.reason }) });
       if (!config.configured) throw new ApiError(503, config.reason);
       // The same deadline bounds auth, database reads, model and persistence.
       const deadline = AbortSignal.timeout(50_000);
@@ -36,8 +42,14 @@ export function createHandler({ env = process.env, fetcher = fetch } = {}) {
       await db.authenticate();
       if (req.method === 'GET' && path === '/api/state') {
         const state = await db.rpc('jarvis_state');
-        return send(res, 200, { ...state, cloud: true, version: VERSION, provider: 'Gemini API', aiInstalled: config.ai,
+        const queue = await queueState(db, config);
+        const aiInstalled = config.provider === 'antigravity_windows'
+          ? !queue.queuesUnavailable && ['ready', 'processing'].includes(queue.worker.status) : config.ai;
+        return send(res, 200, { ...state, ...queue, cloud: true, version: VERSION, provider: config.provider, aiInstalled,
           windows: false, voiceInstalled: false, vault: 'Memória online · Supabase' });
+      }
+      if (req.method === 'GET' && path === '/api/chat-job') {
+        return send(res, 200, await db.rpc('jarvis_chat_job', { p_id: uuid(url.searchParams.get('id')) }));
       }
       if (req.method !== 'POST') throw new ApiError(405, 'Método não permitido.');
       const data = await body(req);
@@ -66,6 +78,11 @@ export function createHandler({ env = process.env, fetcher = fetch } = {}) {
         }
         case '/api/chat': {
           const request = text(data.text, 12_000, { trim: false });
+          if (config.provider === 'antigravity_windows') {
+            result = await db.rpc('jarvis_chat_enqueue', { p_request: request, p_request_id: uuid(data.requestId) });
+            status = 202; break;
+          }
+          if (config.provider !== 'gemini_api') throw new ApiError(503, 'Provedor de IA inválido. Configure JARVIS_AI_PROVIDER no servidor.');
           if (!config.ai) throw new ApiError(503, 'Configure GEMINI_API_KEY e GEMINI_MODEL no servidor para habilitar o chat.');
           const slot = await db.rpc('jarvis_chat_reserve');
           const context = await db.rpc('jarvis_context');
@@ -73,11 +90,52 @@ export function createHandler({ env = process.env, fetcher = fetch } = {}) {
           const answer = await generate(prepared.prompt, env, boundedFetch);
           result = await db.rpc('jarvis_chat_append', { p_slot: slot, p_request: request, p_response: answer, p_sources: prepared.sources }); break;
         }
+        case '/api/chat-cancel': result = await db.rpc('jarvis_chat_cancel', { p_id: uuid(data.jobId) }); break;
+        case '/api/worker-register':
+          requireWorkerProvider(config); result = await registerWorker(db); status = 201; break;
+        case '/api/worker-revoke': result = await db.rpc('jarvis_worker_revoke', { p_device_id: uuid(data.deviceId) }); break;
+        case '/api/worker-heartbeat': {
+          requireWorkerProvider(config);
+          result = await db.rpc('jarvis_worker_heartbeat', { ...workerCredentials(req, data), ...workerHeartbeat(data) }); break;
+        }
+        case '/api/worker-claim': {
+          const credentials = workerCredentials(req, data); requireWorkerProvider(config, { dispatch: true });
+          result = await claimWorker(db, credentials); break;
+        }
+        case '/api/worker-start': {
+          const attempt = workerAttempt(workerCredentials(req, data), data); requireWorkerProvider(config, { dispatch: true });
+          result = await db.rpc('jarvis_worker_start', attempt); break;
+        }
+        case '/api/worker-renew':
+          requireWorkerProvider(config, { dispatch: true }); result = await db.rpc('jarvis_worker_renew', workerAttempt(workerCredentials(req, data), data)); break;
+        case '/api/worker-complete': {
+          requireWorkerProvider(config);
+          const attempt = workerAttempt(workerCredentials(req, data), data);
+          const answer = completion(data);
+          if (!config.antigravityEnabled) {
+            const existing = await db.rpc('jarvis_chat_job', { p_id: attempt.p_job_id });
+            if (existing.status !== 'completed') requireWorkerProvider(config, { dispatch: true });
+          }
+          // Even an existing result is checked by the DB against the active
+          // device, exact attempt and exact answer before replay is returned.
+          result = await db.rpc('jarvis_worker_complete', { ...attempt, p_answer: answer }); break;
+        }
+        case '/api/worker-fail':
+          requireWorkerProvider(config);
+          if (!FAILURE_CODES.includes(data.code)) throw new ApiError(400, 'Código de falha inválido.');
+          result = await db.rpc('jarvis_worker_fail', { ...workerAttempt(workerCredentials(req, data), data), p_code: data.code }); break;
         case '/api/diagnostics':
-          result = { version: VERSION, cloud: true, provider: 'Gemini API', cli: 'Não utilizado no servidor online',
-            compatible: true, windows: false, voiceInstalled: false, vault: 'Supabase com RLS',
-            login: 'Conta confirmada e autorizada', issues: config.ai ? [] : ['Configure GEMINI_API_KEY e GEMINI_MODEL para habilitar o chat.'] }; break;
+          result = { version: VERSION, cloud: true, provider: config.provider, cli: 'Executado somente pelo worker no Windows',
+            compatible: config.provider === 'gemini_api', windows: false, voiceInstalled: false, vault: 'Supabase com RLS',
+            login: 'Conta confirmada e autorizada', ...(await queueState(db, config)),
+            issues: config.provider === 'antigravity_windows' ? ['O despacho depende do gate administrativo e da validação real do controle de ferramentas.']
+              : config.ai ? [] : ['Configure GEMINI_API_KEY e GEMINI_MODEL para habilitar o chat.'] }; break;
         case '/api/ai-check':
+          if (config.provider === 'antigravity_windows') {
+            const queue = await queueState(db, config);
+            result = { ok: queue.worker.status === 'ready', cloud: true, provider: config.provider,
+              authenticatedModelTest: false, ...queue, login: 'A fila não confirma login no CLI nem controle real de ferramentas.' }; break;
+          }
           // Configuration check is intentionally free: it does not make a billed model request.
           if (!config.ai) throw new ApiError(503, 'Configure GEMINI_API_KEY e GEMINI_MODEL no servidor para habilitar o chat.');
           result = { ok: true, cloud: true, configured: true, authenticatedModelTest: false,

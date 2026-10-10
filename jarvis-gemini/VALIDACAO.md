@@ -1,6 +1,28 @@
 # Verificação do Jarvis
 
-Data: 9 de outubro de 2026. Plataforma: Windows 11.
+Atualização: 10 de outubro de 2026. Plataforma: Windows 11.
+
+## Worker Windows — preparado, execução bloqueada pela CLI real
+
+| Verificação | Resultado |
+| --- | --- |
+| Versão oficial atual | Manifest Windows `windows_amd64` consultado no instalador oficial: Antigravity 1.3.3 |
+| Download privado | SHA-512 conferido; versão anterior preservada; sem alterar PATH, aliases ou configurações globais |
+| Probe real 1.3.3 | `init.agent = jarvis-chat`, `tool_count = 60`, `prompt_sent = false`, `before_send_called = false`; gate manteve a recusa |
+| Transporte e worker | 17 testes de transporte e 18 do worker com processos/modelo/HTTPS simulados; incluem prova DPAPI real com dados sintéticos e mutex Windows exclusivo |
+| Proteções verificadas | Probe antes de claim; START confirmado antes do stdin; replay de START recusado; cancelamento e Job Object; ambiente da CLI sem credenciais do worker; redirects recusados |
+| Recuperação | Resultado criptografado com DPAPI antes da publicação; retry somente da conclusão com a mesma resposta; tentativa expirada/incerta preservada para revisão, sem regeneração automática |
+| Conta e ativação reais | Nenhuma credencial de usuário inserida nesta etapa; nenhum pedido real processado, tarefa agendada ou autostart instalado |
+
+Dados do worker: `%LOCALAPPDATA%/JarvisGemini/worker`, fora do repositório e do cofre local. `CONFIGURAR-WORKER.bat` oferece conexão Supabase por senha oculta, probe, pausa, retomada manual, revogação, estado local e instalação/desativação da inicialização ao logon. `INICIAR-WORKER.bat` executa manualmente; a CLI precisa comprovar `tools: []` antes de buscar qualquer pedido. Login Google permanece no keyring próprio do Antigravity, separado da sessão Supabase protegida por DPAPI.
+
+`INICIALIZACAO-WORKER.ps1` prepara uma tarefa de logon do usuário interativo, com privilégios limitados e `pythonw.exe` absoluto, sem senha ou tokens nos argumentos. A instalação exige probe estrito e gate online positivo antes de registrar a tarefa. O script não inicia o worker na instalação. Nesta entrega, nenhuma tarefa foi registrada e esse caminho continuará recusado enquanto a CLI anunciar ferramentas.
+
+O worker foi preparado para polling de 10s, heartbeat de 30s, geração de até 180s e renovação de lease de 240s. Estes contratos ainda precisam de validação autenticada ponta a ponta com o backend da fila. A CLI 1.3.3 continua bloqueada: encontrar o binário, fazer login ou instalar a fila não comprova controle de ferramentas. Gates administrativos online devem continuar desativados. A assinatura Antigravity possui cotas; esta implementação não promete acesso ilimitado nem usa fallback pago silencioso.
+
+Workspaces temporários contêm o perfil protegido. A CLI pode manter transcrições globais; remover o workspace não garante apagar esses registros. Resultados de tentativas rejeitadas/expiradas permanecem em um outbox DPAPI terminal para revisão e interrompem novos claims até resolução explícita.
+
+Os registros 0.4.0 e anteriores abaixo são históricos e não validam o novo worker ou a entrega online.
 
 ## Prévia 0.4.0 — checks locais aprovados, migração não concluída
 

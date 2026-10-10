@@ -25,4 +25,35 @@ setInterval(()=>{$('clock').textContent=new Date().toLocaleTimeString('pt-BR');}
 // Lightweight sphere, rendered without external assets or dependencies.
 const canvas=$('orb'),ctx=canvas.getContext('2d');const points=Array.from({length:280},(_,i)=>{const y=1-i/279*2,r=Math.sqrt(1-y*y),a=i*Math.PI*(3-Math.sqrt(5));return [Math.cos(a)*r,y,Math.sin(a)*r];});let angle=0;
 function draw(){const dpr=Math.min(devicePixelRatio,2),w=canvas.clientWidth,h=canvas.clientHeight;if(canvas.width!==w*dpr||canvas.height!==h*dpr){canvas.width=w*dpr;canvas.height=h*dpr;}ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);const r=Math.min(w*.3,h*.34),cx=w/2,cy=h*.43;const projected=points.map(([x,y,z])=>{const xx=x*Math.cos(angle)-z*Math.sin(angle),zz=x*Math.sin(angle)+z*Math.cos(angle);return {x:cx+xx*r,y:cy+y*r,z:zz};});for(let i=0;i<projected.length;i++){const p=projected[i];ctx.fillStyle=`rgba(181,244,119,${.18+(p.z+1)*.35})`;ctx.beginPath();ctx.arc(p.x,p.y,p.z>0?1.7:.8,0,Math.PI*2);ctx.fill();if(i%3===0){const q=projected[(i+8)%projected.length];if(Math.hypot(q.x-p.x,q.y-p.y)<r*.5){ctx.strokeStyle='rgba(181,244,119,.075)';ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();}}}ctx.strokeStyle='rgba(181,244,119,.12)';ctx.beginPath();ctx.ellipse(cx,cy,r*1.26,r*.22,-.2,0,Math.PI*2);ctx.stroke();if(!matchMedia('(prefers-reduced-motion: reduce)').matches)angle+=busy?.011:.003;requestAnimationFrame(draw);}draw();
+// The cloud queue uses the same editor and history; local Windows calls retain
+// their synchronous chat behavior and local authentication token.
+if(window.jarvisPlatform){
+  const platform=window.jarvisPlatform;
+  const historyRender=messagesRender;
+  messagesRender=()=>{historyRender();if(state.jobs?.some(job=>job.status!=='completed'))$('messages').querySelector('.welcome')?.remove();platform.renderJobs($('messages'),state);};
+  function cloudState(data,messages=true){
+    state=data;token='';$('connection').textContent='JARVIS ONLINE';
+    $('ai-status').textContent=platform.workerLabel(state.worker);
+    $('voice-status').textContent='Disponível no Windows';$('note-count').textContent=state.notes.length+' notas';$('vault-path').textContent=state.vault;
+    document.querySelector('.migration-status').textContent='Pedidos guardados por até 7 dias · Processamento pelo Antigravity no seu Windows.';
+    tasksRender();notesRender(state.notes);if(messages)messagesRender();
+    $('mic').disabled=true;$('mic').title='A transcrição local está disponível na versão Windows.';setBusy(busy);
+  }
+  refresh=async(messages=true)=>{const data=await platform.state();if(platform.active())cloudState(data,messages);};
+  setBusy=value=>{busy=value;$('send').disabled=value;$('activity').textContent=value?'Enviando pedido para a fila…':'Pronto para enviar · o Windows processa a fila';};
+  platform.onState(data=>cloudState(data));
+  $('chat-form').onsubmit=async event=>{
+    event.preventDefault();if(busy)return;const text=$('prompt').value.trim();if(!text)return;
+    setBusy(true);notice('');let accepted=false;
+    try{
+      await platform.submitChat(text);
+      accepted=true;
+      if($('prompt').value.trim()===text)$('prompt').value='';
+      notice('Pedido guardado na fila. O Windows processará quando estiver disponível.');
+    }catch(error){notice(error.message);}finally{setBusy(false);}
+    // Only this POST owns busy: its later refresh must not release a composer
+    // already busy sending the next request.
+    if(accepted)try{await refresh();}catch{notice('Pedido guardado. A atualização da fila está indisponível; confira novamente em instantes.');}
+  };
+}
 (window.jarvisPlatform?window.jarvisPlatform.ready:Promise.resolve()).then(()=>refresh()).catch(e=>{$('connection').textContent='DESCONECTADO';notice(e.message);});

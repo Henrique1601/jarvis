@@ -67,10 +67,12 @@ if mode == 'stderr':
     sys.stderr.write('internal-secret-log' * 15000)
     sys.stderr.flush()
 emit({'event': 'step_update', 'step_update': {'state': 'DONE', 'step_type': 'user_input'}})
-result = {'status': 'ERROR' if mode == 'failed' else 'SUCCESS',
+result = {'status': 'ERROR' if mode in ('failed', 'quota') else 'SUCCESS',
           'response': ' ' if mode == 'empty' else 'Olá Henrique'}
 if mode == 'failed':
     result['error'] = 'internal-secret-failure'
+if mode == 'quota':
+    result['error'] = 'resource_exhausted: internal-secret-failure'
 if mode == 'missing_status':
     del result['status']
 emit({'event': 'result', 'result': result})
@@ -101,15 +103,50 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(self.root.resolve().is_relative_to(Path(__file__).resolve().parent))
         self.temp.cleanup()
 
-    def call(self, mode, prompt='Meu pedido', timeout=3):
+    def call(self, mode, prompt='Meu pedido', timeout=3, **options):
         popen = subprocess.Popen
         def start(*args, **kwargs):
             proc = popen(*args, **kwargs)
             self.processes.append(proc)
             return proc
         with patch.object(runtime, 'command', return_value=[sys.executable, '-u', str(self.fixture), mode, str(self.receipt)]), patch.object(runtime.subprocess, 'Popen', side_effect=start) as launched:
-            result = runtime.ask(self.root, self.workspace, prompt, timeout=timeout)
+            result = runtime.ask(self.root, self.workspace, prompt, timeout=timeout, **options)
             return result, launched.call_args
+
+    def test_probe_reads_init_without_prompt(self):
+        result, _ = self.call('success', None, _probe=True)
+        self.assertEqual(result, {'agent': 'jarvis-chat', 'tools': [], 'verified': True})
+        self.assertFalse(self.receipt.exists())
+
+    def test_start_callback_failure_never_sends_prompt(self):
+        def rejected():
+            raise RuntimeError('START refused')
+        with self.assertRaisesRegex(RuntimeError, 'START refused'):
+            self.call('success', before_send=rejected)
+        self.assertFalse(self.receipt.exists())
+
+    def test_cancellation_interrupts_wait_and_reaps_process(self):
+        import threading
+        cancel = threading.Event()
+        def ready():
+            threading.Timer(0.15, cancel.set).start()
+        started = time.monotonic()
+        with self.assertRaisesRegex(RuntimeError, 'interrompido'):
+            self.call('timeout_turn', timeout=3, before_send=ready, cancel_event=cancel)
+        self.assertLess(time.monotonic() - started, 2)
+
+    def test_cli_environment_has_no_worker_or_transport_credentials(self):
+        with patch.dict(os.environ, {'SUPABASE_URL': 'https://private', 'SUPABASE_ANON_KEY': 'secret',
+            'JARVIS_DEVICE_TOKEN': 'secret', 'SUPABASE_ACCESS_TOKEN': 'secret', 'GOOGLE_GEMINI_BASE_URL': 'https://override',
+            'HTTPS_PROXY': 'https://proxy', 'GOOGLE_APPLICATION_CREDENTIALS': 'private.json'}):
+            env = runtime.cli_environment()
+            self.assertFalse(set(('SUPABASE_URL','SUPABASE_ANON_KEY','JARVIS_DEVICE_TOKEN','SUPABASE_ACCESS_TOKEN',
+                'GOOGLE_GEMINI_BASE_URL','HTTPS_PROXY','GOOGLE_APPLICATION_CREDENTIALS')) & set(env))
+
+    def test_result_quota_is_classified_without_leaking_vendor_detail(self):
+        with self.assertRaisesRegex(RuntimeError, 'cota do Antigravity') as error:
+            self.call('quota')
+        self.assertNotIn('internal-secret', str(error.exception))
 
     def test_success_stdin_not_arguments_and_filtered_environment(self):
         prompt = '  Pedido: $(texto) "aspas"\nEficiência  '

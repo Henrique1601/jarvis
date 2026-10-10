@@ -14,7 +14,15 @@ export class Database {
       if (response.status === 401) throw new ApiError(401, 'Sua sessão expirou. Entre novamente.');
       let code;
       try { code = (await jsonResponse(response, 16_000))?.code; } catch {}
+      if (code === 'PGRST202') {
+        const error = new ApiError(503, 'A migração da fila ainda não está disponível no banco.');
+        error.code = 'schema_not_ready'; throw error;
+      }
       if (code === 'PT409') throw new ApiError(409, 'A nota mudou desde a leitura. Abra a versão atual antes de salvar.');
+      if (code === 'JQ409') throw new ApiError(409, 'A tentativa não está mais ativa ou o pedido já mudou de estado. Atualize a fila.');
+      if (code === 'JQ429') throw new ApiError(429, 'A fila já possui cinco pedidos pendentes. Aguarde ou cancele um pedido.');
+      if (code === 'JQ403') throw new ApiError(403, 'Dispositivo inválido ou revogado. Registre novamente pelo Windows.');
+      if (code === 'JQ503') throw new ApiError(503, 'O Antigravity está bloqueado: o controle de ferramentas ainda não foi validado. Os pedidos continuam na fila.');
       if (code === 'PT404') throw new ApiError(404, 'Registro não encontrado.');
       if (code === 'PT429') throw new ApiError(429, 'Limite de 20 tentativas de chat por hora atingido. Aguarde antes de tentar novamente.');
       if (code === 'PT413') throw new ApiError(413, 'Limite de armazenamento ou exportação atingido. Nenhum dado foi removido.');

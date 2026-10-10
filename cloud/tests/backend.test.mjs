@@ -10,6 +10,7 @@ const ID = '11111111-1111-4111-8111-111111111111';
 const SLOT = '22222222-2222-4222-8222-222222222222';
 const REV = 'a'.repeat(64);
 const ENV = { SUPABASE_URL: 'https://project.supabase.co', SUPABASE_ANON_KEY: 'sb_publishable_test',
+  JARVIS_AI_PROVIDER: 'gemini_api',
   ALLOWED_EMAILS: 'alice@example.com, bob@example.com', GEMINI_API_KEY: 'private-test-secret', GEMINI_MODEL: 'test-model' };
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
 const user = (token = 'alice') => ({ id: token === 'alice' ? ID : SLOT, email: `${token}@example.com`, email_confirmed_at: '2026-10-09T00:00:00Z', is_anonymous: false });
@@ -33,6 +34,7 @@ function fixture(routes = {}, options = {}) {
     if (Object.hasOwn(routes, name)) {
       const value = routes[name]; return typeof value === 'function' ? value(calls.at(-1)) : json(value);
     }
+    if (name === 'jarvis_queue_state') return json({ jobs: [], worker: { status: 'offline', lastSeen: null, reason: 'offline' } });
     if (name === 'jarvis_context') return json({ notes: [], tasks: [], messages: [] });
     if (name === 'jarvis_chat_reserve') return json(SLOT);
     if (name === 'jarvis_chat_append') return json({ id: ID, role: 'assistant', content: 'Resposta sintética.', time: '2026-10-09', sources: [] });
@@ -75,7 +77,7 @@ test('each request forwards its own Bearer and public apikey; no supplied owner 
     jarvis_note_create: call => json({ id: ID, title: call.data.p_title }) });
   const alice = await invoke({ ...mock }); const bob = await invoke({ ...mock, token: 'bob' });
   assert.equal(alice.payload.notes[0].id, 'alice'); assert.equal(bob.payload.notes[0].id, 'bob');
-  assert.equal(alice.payload.cloud, true); assert.equal(alice.payload.windows, false); assert.equal(alice.payload.provider, 'Gemini API');
+  assert.equal(alice.payload.cloud, true); assert.equal(alice.payload.windows, false); assert.equal(alice.payload.provider, 'gemini_api');
   const created = await invoke({ ...mock, path: 'note', method: 'POST', data: { title: 'Nota', content: 'Texto', owner_id: SLOT } });
   assert.equal(created.status, 201);
   const call = mock.calls.at(-1); assert.equal(call.init.headers.apikey, ENV.SUPABASE_ANON_KEY);

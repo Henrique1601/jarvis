@@ -17,7 +17,10 @@ export function settings(env) {
     try { publicKey = JSON.parse(Buffer.from(key.split('.')[1], 'base64url')).role === 'anon'; } catch {}
   }
   const configured = Boolean(validURL && publicKey && emails.size);
-  return { url, key, emails, configured, ai: Boolean(env.GEMINI_API_KEY && env.GEMINI_MODEL),
+  const provider = env.JARVIS_AI_PROVIDER || 'antigravity_windows';
+  const antigravityEnabled = env.JARVIS_ANTIGRAVITY_ENABLED === 'true';
+  return { url, key, emails, configured, provider, antigravityEnabled,
+    ai: provider === 'gemini_api' ? Boolean(env.GEMINI_API_KEY && env.GEMINI_MODEL) : false,
     reason: configured ? undefined : 'Configure SUPABASE_URL, SUPABASE_ANON_KEY pública e ALLOWED_EMAILS no servidor.' };
 }
 

@@ -100,24 +100,27 @@ diagnosticButton.onclick = async () => {
   $('diagnostic-dialog').showModal();
   try {
     const result = await api('diagnostics', {});
+    const cloudWorker = result.cloud && result.provider === 'antigravity_windows';
+    $('test-ai').textContent = cloudWorker ? 'Verificar worker ↗' : 'Testar conexão IA ↗';
     $('diagnostic-content').replaceChildren();
     for (const [label, value] of [
       ['Jarvis', result.version], result.cloud ? ['Servidor', 'Node.js'] : ['Python', result.python],
-      [result.provider || 'Antigravity CLI', result.cli || 'Não encontrado'], ['Integração', result.compatible ? 'Opções compatíveis' : 'Precisa de configuração'],
-      ['Transcrição local', result.voiceInstalled ? 'Instalada' : 'Opcional • não instalada'], ['Conta Google', result.login]
+      [cloudWorker ? 'Antigravity no Windows' : result.provider || 'Antigravity CLI', result.cli || 'Não encontrado'],
+      ['Integração', cloudWorker ? window.jarvisPlatform.workerLabel(result.worker) : result.compatible ? 'Opções compatíveis' : 'Precisa de configuração'],
+      ['Transcrição local', result.voiceInstalled ? 'Instalada' : 'Opcional • não instalada'], [result.cloud ? 'Conta Jarvis' : 'Conta Google', result.login]
     ]) {
       const row = el('div', undefined, 'diagnostic-row');
       row.append(el('span', label), el('strong', value));
       $('diagnostic-content').append(row);
     }
     for (const issue of result.issues) $('diagnostic-content').append(el('p', issue, 'feedback'));
-    $('test-ai').disabled = !result.compatible;
+    $('test-ai').disabled = !cloudWorker && !result.compatible;
   } catch (error) { $('diagnostic-notice').textContent = error.message; }
 };
 $('close-diagnostic').onclick = () => $('diagnostic-dialog').close();
 $('test-ai').onclick = async () => {
   $('test-ai').disabled = true;
-  $('diagnostic-notice').textContent = state?.cloud ? 'Testando a Gemini API…' : 'Testando com a conta conectada ao Antigravity CLI…';
+  $('diagnostic-notice').textContent = state?.cloud ? 'Verificando o worker do Antigravity no Windows…' : 'Testando com a conta conectada ao Antigravity CLI…';
   try {
     const result = await api('ai-check', {});
     $('diagnostic-notice').textContent = result.login;

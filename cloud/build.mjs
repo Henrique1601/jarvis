@@ -13,10 +13,10 @@ html = html.replace('<title>Jarvis • Antigravity</title>', '<title>Jarvis • 
   .replace('</head>', '<link rel="stylesheet" href="/cloud.css"></head>')
   .replace('<body>', '<body class="cloud-locked">')
   .replace('Prévia 0.4: a conexão de IA ainda está bloqueada. Memória e tarefas estão disponíveis.', 'Jarvis online · Sua memória fica na sua conta. O cofre Windows é separado; sincronização ainda não está disponível.')
-  .replaceAll('<b>Antigravity</b>', '<b>Gemini API</b>')
+  .replaceAll('<b>Antigravity</b>', '<b>Antigravity no Windows</b>')
   .replace('JARVIS / ANTIGRAVITY', 'JARVIS / ONLINE')
-  .replace('Antigravity processa os pedidos na nuvem.<br>As notas ficam no seu computador.', 'Gemini API processa os pedidos na nuvem.<br>Suas notas online ficam na sua conta Supabase.')
-  .replace(/<details class="setup">[\s\S]*?<\/details>/, '<details class="setup"><summary>Configuração e dados</summary><p>Notas, tarefas e conversa pertencem à conta autenticada. O backup é exportado em JSON com conteúdo Markdown.</p><p>O microfone local e as vozes do Windows estão disponíveis no aplicativo para Windows.</p><code id="vault-path"></code><p><a href="https://github.com/Henrique1601/jarvis#jarvis-para-windows" target="_blank" rel="noopener noreferrer">Usar o Jarvis no Windows ↗</a></p></details>')
+  .replace('Antigravity processa os pedidos na nuvem.<br>As notas ficam no seu computador.', 'Seu Windows responde pelo Antigravity.<br>Notas e pedidos online ficam na sua conta Supabase.')
+  .replace(/<details class="setup">[\s\S]*?<\/details>/, '<details class="setup"><summary>Configuração e dados</summary><p>Notas, tarefas, conversa e pedidos pertencem à conta autenticada. O backup é exportado em JSON com conteúdo Markdown.</p><p>Para conectar seu computador, use CONFIGURAR-WORKER.bat na versão Windows. O processamento depende da validação do CLI sem ferramentas. Sem computador disponível, os pedidos aguardam até sete dias.</p><p>O microfone local e as vozes do Windows estão disponíveis no aplicativo para Windows.</p><code id="vault-path"></code><p><a href="https://github.com/Henrique1601/jarvis/blob/main/cloud/ANTIGRAVITY-WINDOWS.md" target="_blank" rel="noopener noreferrer">Como conectar o Windows ↗</a></p></details>')
   .replace('<script src="/app.js">', '<script src="/platform.js"></script><script src="/app.js">');
 const auth = `<section id="cloud-auth" class="cloud-auth" aria-labelledby="auth-title"><div class="auth-card">
 <p class="eyebrow">JARVIS / SUA CONTA</p><h1 id="auth-title">Sua memória, onde você estiver.</h1><p>Entre para abrir suas notas, tarefas e conversas online.</p>
