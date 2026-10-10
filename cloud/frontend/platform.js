@@ -10,6 +10,17 @@ const message = text => { byId('auth-notice').textContent = text; };
 function controls(disabled) {
   for (const id of ['auth-submit', 'auth-signup', 'auth-reset']) byId(id).disabled = disabled;
 }
+function loginError(error) {
+  if (error?.code === 'invalid_credentials')
+    return 'E-mail ou senha incorretos. Digite a senha da sua conta Jarvis ou use Esqueci minha senha.';
+  if (error?.code === 'email_not_confirmed')
+    return 'Antes de entrar, confirme seu e-mail pelo link enviado pelo Jarvis.';
+  if (error?.status === 429 || error?.code === 'over_request_rate_limit')
+    return 'Muitas tentativas de login. Aguarde alguns minutos antes de tentar novamente.';
+  if (error?.name === 'AuthRetryableFetchError' || error?.code === 'request_timeout' || error?.status >= 500)
+    return 'Não foi possível conectar ao login. Confira sua conexão; o serviço pode estar indisponível. Tente novamente em alguns minutos.';
+  return 'Não foi possível entrar. Confira os dados e tente novamente, ou use Esqueci minha senha.';
+}
 function lock(messageText) {
   authorizationAttempt++;
   byId('cloud-auth').hidden = false;
@@ -135,10 +146,10 @@ byId('cloud-login').onsubmit = async event => {
   event.preventDefault(); controls(true); message('Entrando…');
   try {
     const { data, error } = await client.auth.signInWithPassword({ email: byId('auth-email').value.trim(), password: byId('auth-password').value });
-    if (error) throw Error('Não foi possível entrar. Confira e-mail, senha e confirmação do e-mail.');
+    if (error) throw error;
     byId('auth-password').value = '';
     if (await unlock(data.session)) location.reload();
-  } catch (error) { message(error.message); }
+  } catch (error) { message(loginError(error)); }
   finally { controls(false); }
 };
 byId('auth-signup').onclick = async () => {
@@ -206,6 +217,11 @@ async function init() {
     if (!recovery && data.session) await unlock(data.session);
     else if (!recovery) message('Use o e-mail autorizado para este Jarvis.');
     controls(false);
-  } catch (error) { message(error.message || 'Não foi possível conectar ao login. Recarregue a página.'); }
+  } catch (error) {
+    message(error.message || 'Não foi possível conectar ao login. Recarregue a página.');
+    // A failed session restore must still permit a fresh login. Missing
+    // configuration or storage prevents client creation and keeps controls off.
+    if (client) controls(false);
+  }
 }
 init();

@@ -20,7 +20,7 @@ function storage(initial = {}) {
   return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, String(value)), removeItem: key => values.delete(key) };
 }
 
-function harness({ session = null, configured = true, state = () => response(200, {}), api = () => response(200, {}), signOutError = null, refreshError = null,
+function harness({ session = null, sessionError = null, signInError = null, configured = true, state = () => response(200, {}), api = () => response(200, {}), signOutError = null, refreshError = null,
   sharedStorage = storage(), tabStorage = storage(), useStoredSession = false } = {}) {
   class Element {
     constructor() { this.hidden = false; this.disabled = false; this.value = ''; this.textContent = ''; this.children = []; }
@@ -37,10 +37,10 @@ function harness({ session = null, configured = true, state = () => response(200
   const calls = []; const subscribers = []; let sdkOptions; let reloads = 0; let ready = false;
   const client = { auth: {
     getSession: async () => ({ data: { session: useStoredSession
-      ? JSON.parse((sdkOptions?.auth.storage || sharedStorage).getItem(storageKey) || 'null') : session }, error: null }),
+      ? JSON.parse((sdkOptions?.auth.storage || sharedStorage).getItem(storageKey) || 'null') : session }, error: sessionError }),
     refreshSession: async () => ({ data: { session: refreshError ? null : { ...owner, access_token: 'refreshed-token' } }, error: refreshError }),
     onAuthStateChange: fn => { subscribers.push(fn); },
-    signInWithPassword: async () => ({ data: { session: owner }, error: null }),
+    signInWithPassword: async () => ({ data: { session: signInError ? null : owner }, error: signInError }),
     signOut: async () => ({ error: signOutError }),
     updateUser: async value => { calls.push({ passwordUpdate: value.password }); return { error: null }; }
   } };
@@ -66,7 +66,54 @@ test('unconfigured auth stays locked and never creates an SDK client', async () 
   const h = harness({ configured: false }); await flush();
   assert.equal(h.sdkOptions, undefined); assert.equal(h.ready, false);
   assert.ok(h.classes.has('cloud-locked')); assert.equal(h.get('auth-submit').disabled, true);
+  assert.equal(h.get('auth-signup').disabled, true); assert.equal(h.get('auth-reset').disabled, true);
   assert.match(h.get('auth-notice').textContent, /configuração/);
+});
+
+test('session recovery error permits a fresh login while private UI stays locked', async () => {
+  const h = harness({ sessionError: Error('synthetic-initial-session-error') }); await flush();
+  assert.equal(h.ready, false); assert.ok(h.classes.has('cloud-locked'));
+  assert.equal(h.calls.filter(call => call.url === '/api/state').length, 0);
+  assert.match(h.get('auth-notice').textContent, /Entre novamente/);
+  for (const id of ['auth-submit', 'auth-signup', 'auth-reset']) assert.equal(h.get(id).disabled, false);
+  let signIns = 0;
+  h.client.auth.signInWithPassword = async () => { signIns++; return { data: { session: owner }, error: null }; };
+  await h.get('cloud-login').onsubmit({ preventDefault() {} }); await flush();
+  assert.equal(signIns, 1); assert.equal(h.ready, true); assert.equal(h.reloads, 1);
+  assert.equal(h.calls.filter(call => call.url === '/api/state').length, 1);
+  assert.equal(h.get('auth-password').value, '');
+});
+
+for (const [label, fields, expected] of [
+  ['invalid credentials', { code: 'invalid_credentials', status: 400 }, /E-mail ou senha incorretos.*Esqueci minha senha/],
+  ['unconfirmed email', { code: 'email_not_confirmed', status: 400 }, /confirme seu e-mail/i],
+  ['rate limit code', { code: 'over_request_rate_limit' }, /Aguarde alguns minutos/],
+  ['rate limit status', { status: 429 }, /Aguarde alguns minutos/],
+  ['retryable fetch', { name: 'AuthRetryableFetchError' }, /conexão.*indisponível/],
+  ['request timeout', { code: 'request_timeout' }, /conexão.*indisponível/],
+  ['service failure', { status: 503 }, /conexão.*indisponível/],
+  ['unknown provider detail', { code: 'unrecognized_fixture_error', status: 400 }, /Não foi possível entrar/]
+]) {
+  test(`login maps ${label} safely and keeps private UI locked`, async () => {
+    const h = harness({ signInError: { ...fields, message: 'PRIVATE_PROVIDER_DETAIL_FIXTURE' } }); await flush();
+    await h.get('cloud-login').onsubmit({ preventDefault() {} }); await flush();
+    assert.match(h.get('auth-notice').textContent, expected);
+    assert.doesNotMatch(h.get('auth-notice').textContent, /PRIVATE_PROVIDER_DETAIL_FIXTURE|unrecognized_fixture_error/);
+    assert.equal(h.ready, false); assert.ok(h.classes.has('cloud-locked'));
+    assert.equal(h.get('cloud-auth').hidden, false);
+    assert.equal(h.calls.filter(call => call.url === '/api/state').length, 0);
+    assert.equal(h.get('auth-submit').disabled, false);
+  });
+}
+
+test('unexpected login rejection never echoes provider details', async () => {
+  const h = harness(); await flush();
+  h.client.auth.signInWithPassword = async () => { throw Error('PRIVATE_PROVIDER_DETAIL_FIXTURE'); };
+  await h.get('cloud-login').onsubmit({ preventDefault() {} });
+  assert.match(h.get('auth-notice').textContent, /Não foi possível entrar/);
+  assert.doesNotMatch(h.get('auth-notice').textContent, /PRIVATE_PROVIDER_DETAIL_FIXTURE/);
+  assert.equal(h.ready, false); assert.ok(h.classes.has('cloud-locked'));
+  assert.equal(h.get('auth-submit').disabled, false);
 });
 
 test('session alone never unlocks: state must first authorize the account', async () => {
