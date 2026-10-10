@@ -1,0 +1,7 @@
+public/
+tests/
+supabase/
+.env*
+!.env.example
+.local/
+README.md

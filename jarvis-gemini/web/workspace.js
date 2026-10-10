@@ -117,7 +117,7 @@ diagnosticButton.onclick = async () => {
 $('close-diagnostic').onclick = () => $('diagnostic-dialog').close();
 $('test-ai').onclick = async () => {
   $('test-ai').disabled = true;
-  $('diagnostic-notice').textContent = 'Testando com a conta conectada ao Antigravity CLI…';
+  $('diagnostic-notice').textContent = state?.cloud ? 'Testando a Gemini API…' : 'Testando com a conta conectada ao Antigravity CLI…';
   try {
     const result = await api('ai-check', {});
     $('diagnostic-notice').textContent = result.login;
@@ -128,8 +128,13 @@ backupButton.onclick = async () => {
   backupButton.disabled = true;
   feedback.textContent = 'Criando backup…';
   try {
-    const result = await api('backup', {});
-    feedback.textContent = 'Backup criado em: ' + result.path;
+    if (window.jarvisPlatform?.backup) {
+      await window.jarvisPlatform.backup();
+      feedback.textContent = 'Backup exportado. Guarde o arquivo em um lugar seguro.';
+    } else {
+      const result = await api('backup', {});
+      feedback.textContent = 'Backup criado em: ' + result.path;
+    }
   } catch (error) { feedback.textContent = error.message; }
   finally { backupButton.disabled = false; }
 };
