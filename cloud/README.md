@@ -2,7 +2,7 @@
 
 Aplicação online com autenticação e persistência por usuário no Supabase e respostas pela Gemini API no servidor. O destino do frontend e da API é Vercel. Esta implementação usa serviços reais; não é uma demonstração com respostas fictícias.
 
-**Situação:** [publicada na Vercel](https://jarvis-ten-pi-14.vercel.app/), com build e 37 testes aprovados. Supabase real preparado e verificado por SQL. O usuário criou e confirmou a conta; a persistência pela interface aguarda validação após a correção da sessão entre abas. A chave Gemini será configurada depois, conforme escolha do usuário.
+**Situação:** [publicada na Vercel](https://jarvis-ten-pi-14.vercel.app/), com build e 37 testes aprovados. Supabase real preparado e verificado por SQL. O usuário criou, confirmou e acessou a conta. Login, recarga, criação/edição/restauração de nota e tarefa concluída foram verificados pela interface publicada. A chave Gemini será configurada depois, conforme escolha do usuário.
 
 ## Arquitetura e dados
 
@@ -21,7 +21,7 @@ RLS e RPCs transacionais exigem proprietário autenticado e presença na lista a
 5. Cadastre a URL final da aplicação como Site URL e os retornos necessários em Redirect URLs; previews e localhost têm URLs próprias. Veja [URLs de autenticação](https://supabase.com/docs/guides/auth/redirect-urls).
 6. Obtenha a URL e a chave pública compatível com `SUPABASE_ANON_KEY` na interface Supabase. Não cole senha de banco, tokens ou chaves de serviço no chat.
 
-Neste projeto, o SQL e a allowlist administrativa já foram preparados. Os testes no Postgres real usaram três usuários sintéticos em uma transação revertida ao terminar e aprovaram isolamento e operações. Isso não confirma login pela interface nem uma sessão real da aplicação publicada.
+Neste projeto, o SQL e a allowlist administrativa já foram preparados. Os testes no Postgres real usaram três usuários sintéticos em uma transação revertida ao terminar e aprovaram isolamento e operações. A jornada pela interface foi verificada posteriormente, conforme o registro abaixo; os testes SQL permanecem uma evidência distinta.
 
 Exemplo administrativo, com placeholder para preencher apenas na interface Supabase:
 
@@ -104,7 +104,8 @@ Não há túnel para o computador Windows nesta arquitetura. O serviço local pe
 | Suíte Windows nesta alteração | 42 testes aprovados na última execução, em 14,871 s; uma execução intermediária falhou isoladamente no teste de concorrência, e a repetição passou |
 | Schema no projeto Supabase real | Migração `jarvis_cloud_v1` aplicada; allowlist do proprietário inserida pela interface administrativa |
 | Operações e isolamento no Postgres real | Aprovados em transação com três usuários sintéticos e rollback: conflito de edição, histórico/restauração, tarefas, par atômico de mensagens, rejeição de reserva reutilizada e fontes excessivas, limite de 20 tentativas e rejeição da 21ª, backup completo, escrita direta recusada, RLS/RPC entre usuários, allowlist e RPC anônimo |
-| Login e persistência pela interface publicada | Conta criada e e-mail confirmado pelo usuário; sessão entre abas e recuperação inicial corrigidas. Interface real exibiu diagnóstico de credenciais recusadas, sem dados brutos do provedor. Nova entrada pelo proprietário e jornada de persistência aguardam validação; testes SQL não substituem essa jornada |
+| Login e persistência pela interface publicada | Aprovados na conta real: abertura em nova aba e sessão após recarga; nota criada, editada e restaurada pelo histórico; tarefa criada e concluída; recarga confirmou nota restaurada e tarefa concluída. Dados sintéticos identificados como validação foram mantidos na conta |
+| Backup pela interface | A interface confirmou a exportação do JSON; o evento de download não foi detectado pela automação, portanto o arquivo baixado não foi inspecionado independentemente |
 | Resposta autenticada Gemini API | Pendente; usuário escolheu configurar a chave depois |
 | GitHub | Correção de sessão `3ad639c` publicada em `main`; ambos os jobs de [CI aprovados](https://github.com/Henrique1601/jarvis/actions/runs/38058458715) |
 | Vercel | Deploy de produção `dpl_BPPMA3sPA2GXXX5EKkwtcGNCwjNj` em `READY`, commit `3ad639c`, raiz `cloud`; [domínio principal](https://jarvis-ten-pi-14.vercel.app/) |
