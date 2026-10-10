@@ -6,6 +6,7 @@ build/
 dist/
 *.spec
 .tools/node_modules/
+.tools/antigravity/
 .npm-cache/
 .runtime/
 data/

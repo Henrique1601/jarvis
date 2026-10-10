@@ -1,6 +1,6 @@
-JARVIS GEMINI 0.3 - WINDOWS
+JARVIS 0.4 PREVIA - WINDOWS / ANTIGRAVITY
 
-1. Execute CONFIGURAR-GEMINI.bat e entre com sua conta Google.
+1. Execute CONFIGURAR-ANTIGRAVITY.bat e entre com sua conta Google.
 2. Execute INICIAR.bat para abrir o painel.
 3. Abra Verificar instalacao e teste a conexao.
 4. No Obsidian, abra data\vault como cofre.
@@ -12,3 +12,9 @@ Microfone opcional: INSTALAR-VOZ.bat (Python 3.12 recomendado).
 Executavel: GERAR-EXE.bat; distribua toda a pasta gerada.
 
 Veja README.md para migracao, restauracao e limitacoes.
+
+Esta migracao usa conversa em texto. Pesquisa web esta desativada.
+
+ATENCAO: a conexao IA esta bloqueada nesta previa porque o CLI 1.3.2
+continua anunciando ferramentas de acao. Fazer login nao resolve esse limite.
+Memoria, tarefas, edicao, historico e backup continuam disponiveis.

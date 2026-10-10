@@ -1,2 +1,2 @@
-bba2c6f69813879cfa213a9493049d945a78a0668cb2daa022d42e554b966a6f  Jarvis-Gemini-0.3-Codigo.zip
-99b0149d6e9bc815a7294da8d80d09ef0c5087f0f6387f22cc04c10be0f3f3e4  Jarvis-Gemini-0.3-Windows.zip
+e3f08960ab10517d75986414878cb47cf8f08f9d23a348593281972f185bbd1b  Jarvis-Gemini-0.4-Previa-Codigo.zip
+d0abf0d2ef35b9c9f56549220d422b23cb45ec895c7666380a5724cf29ae2092  Jarvis-Gemini-0.4-Previa-Windows.zip

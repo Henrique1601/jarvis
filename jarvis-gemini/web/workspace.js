@@ -96,14 +96,14 @@ document.querySelector('.right').append(tools);
 diagnosticButton.onclick = async () => {
   $('diagnostic-content').textContent = 'Verificando…';
   $('diagnostic-notice').textContent = '';
-  $('test-gemini').disabled = true;
+  $('test-ai').disabled = true;
   $('diagnostic-dialog').showModal();
   try {
     const result = await api('diagnostics', {});
     $('diagnostic-content').replaceChildren();
     for (const [label, value] of [
-      ['Jarvis', result.version], ['Python', result.python], ['Node.js', result.node || 'Não encontrado'],
-      ['Gemini CLI', result.gemini || 'Não encontrado'], ['Integração', result.compatible ? 'Opções compatíveis' : 'Precisa de configuração'],
+      ['Jarvis', result.version], ['Python', result.python],
+      [result.provider || 'Antigravity CLI', result.cli || 'Não encontrado'], ['Integração', result.compatible ? 'Opções compatíveis' : 'Precisa de configuração'],
       ['Transcrição local', result.voiceInstalled ? 'Instalada' : 'Opcional • não instalada'], ['Conta Google', result.login]
     ]) {
       const row = el('div', undefined, 'diagnostic-row');
@@ -111,18 +111,18 @@ diagnosticButton.onclick = async () => {
       $('diagnostic-content').append(row);
     }
     for (const issue of result.issues) $('diagnostic-content').append(el('p', issue, 'feedback'));
-    $('test-gemini').disabled = !result.compatible;
+    $('test-ai').disabled = !result.compatible;
   } catch (error) { $('diagnostic-notice').textContent = error.message; }
 };
 $('close-diagnostic').onclick = () => $('diagnostic-dialog').close();
-$('test-gemini').onclick = async () => {
-  $('test-gemini').disabled = true;
-  $('diagnostic-notice').textContent = 'Testando com a conta conectada ao Gemini CLI…';
+$('test-ai').onclick = async () => {
+  $('test-ai').disabled = true;
+  $('diagnostic-notice').textContent = 'Testando com a conta conectada ao Antigravity CLI…';
   try {
-    const result = await api('gemini-check', {});
+    const result = await api('ai-check', {});
     $('diagnostic-notice').textContent = result.login;
   } catch (error) { $('diagnostic-notice').textContent = error.message; }
-  finally { $('test-gemini').disabled = false; }
+  finally { $('test-ai').disabled = false; }
 };
 backupButton.onclick = async () => {
   backupButton.disabled = true;

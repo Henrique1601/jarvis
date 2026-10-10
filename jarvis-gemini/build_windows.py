@@ -15,11 +15,7 @@ subprocess.run([
     'server.py',
 ], cwd=root, check=True)
 destination = root / 'dist/JarvisGemini'
-for name in ('CONFIGURAR-GEMINI.bat', 'README.md'):
+for name in ('CONFIGURAR-GEMINI.bat', 'CONFIGURAR-ANTIGRAVITY.bat', 'INSTALAR-ANTIGRAVITY.ps1', 'LEIA-PRIMEIRO.txt', 'README.md', 'VALIDACAO.md'):
     shutil.copy2(root / name, destination / name)
-(destination / '.tools').mkdir(exist_ok=True)
-for name in ('package.json', 'package-lock.json'):
-    if (root / '.tools' / name).is_file():
-        shutil.copy2(root / '.tools' / name, destination / '.tools' / name)
 (destination / 'release.json').write_text(json.dumps({'version': VERSION}), encoding='utf-8')
 print(destination / 'JarvisGemini.exe')

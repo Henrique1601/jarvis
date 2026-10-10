@@ -8,7 +8,7 @@ if errorlevel 1 goto fail
 ".build-venv\Scripts\python.exe" build_windows.py
 if errorlevel 1 goto fail
 echo Pronto: dist\JarvisGemini\JarvisGemini.exe
-echo Distribua a pasta inteira. Node.js continua necessario.
+echo Distribua a pasta inteira. Configure o Antigravity pelo script incluido.
 echo Microfone: use o codigo-fonte com INSTALAR-VOZ.bat.
 pause
 exit /b 0

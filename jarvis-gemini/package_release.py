@@ -8,12 +8,11 @@ from server import VERSION
 root = Path(__file__).resolve().parent
 output = root.parent
 release = '.'.join(VERSION.split('.')[:2])
-source = output / f'Jarvis-Gemini-{release}-Codigo.zip'
-windows = output / f'Jarvis-Gemini-{release}-Windows.zip'
-files = [p for p in root.iterdir() if p.is_file() and (p.suffix in ('.py', '.bat', '.txt', '.md') or p.name == '.gitignore')]
+source = output / f'Jarvis-Gemini-{release}-Previa-Codigo.zip'
+windows = output / f'Jarvis-Gemini-{release}-Previa-Windows.zip'
+files = [p for p in root.iterdir() if p.is_file() and (p.suffix in ('.py', '.bat', '.ps1', '.txt', '.md') or p.name == '.gitignore')]
 for folder in ('web', 'vault', 'tests'):
     files.extend(p for p in (root / folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts)
-files.extend(root / '.tools' / name for name in ('package.json', 'package-lock.json'))
 with zipfile.ZipFile(source, 'w', zipfile.ZIP_DEFLATED) as archive:
     for path in sorted(files):
         if path.is_file():

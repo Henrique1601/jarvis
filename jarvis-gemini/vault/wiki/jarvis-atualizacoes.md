@@ -8,16 +8,19 @@ status: roadmap
 
 Voltar: [[cerebro-jarvis]]. Skills propostas: [[jarvis-skills]].
 
-A versão 0.2 implementou diagnóstico, edição e restauração de notas, conflitos, histórico, importação sem sobrescrita e backup. A [[jarvis-versao-0.3|0.3.0]] acrescenta recuperação de trechos com origem, orçamento total de contexto e tratamento de falhas do CLI, com 32 testes aprovados e executável validado localmente por HTTP. A indicação de notas enviadas permanece disponível. As etapas abaixo continuam propostas ou pendentes de validação real, sem datas prometidas. A ordem prioriza uma base confiável, depois ferramentas e memória, e por último maior autonomia.
+A versão 0.2 implementou diagnóstico, edição/restauração, conflitos, histórico, importação sem sobrescrita e backup. A [[jarvis-versao-0.3|0.3.0]] acrescentou trechos com origem e orçamento total de contexto. A [[jarvis-versao-0.4|prévia 0.4.0]] preserva essa base e prepara Antigravity: 42 testes, instalação nova, build e smoke local aprovados, mas conversa bloqueada porque o CLI 1.3.2 anuncia ferramentas apesar de `tools: []`. A migração não foi concluída. As etapas abaixo continuam propostas ou pendentes, sem datas prometidas.
 
-## Etapa 1 — validação real no Windows
+## Etapa 1 — controle efetivo do provedor e validação real
 
-**Objetivo:** conferir o comportamento real de Gemini e voz no PC depois dos testes locais da versão 0.3.0.
+**Objetivo:** resolver o bloqueio das ferramentas antes de habilitar conversa e, então, validar provedor e voz no PC.
 
-- Validar login Google, primeira resposta real com nota, microfone, transcrição e leitura pt-BR no PC.
+- Demonstrar isolamento e controle efetivo de ferramentas no CLI real. As tentativas com `tools: []` e allowlist não restringiram a lista anunciada no 1.3.2; o gate continua bloqueando antes do contexto.
+- Se esse controle não puder ser demonstrado, apresentar a alternativa de API de texto com chave e cobrança separada da assinatura Google AI Pro, exigindo escolha do usuário.
+- Após resolver o provedor, fazer o login apropriado e confirmar a restrição antes de transmitir pedido/notas.
+- Validar primeira resposta real com nota, microfone, transcrição e leitura pt-BR no PC.
 - Conferir a instalação em outro PC com instruções reproduzíveis.
 
-**Critério de entrega:** resposta autenticada com evidência de uma nota e áudio observados no Windows; instalação em outro PC conferida separadamente. Testes com Gemini simulado e teste local do executável não encerram essas verificações.
+**Critério de entrega:** permissões efetivamente restritas ou provedor de texto escolhido pelo usuário e implementado, seguido de resposta real com nota e áudio observados; instalação em outro PC conferida separadamente. Login sozinho, mocks e smoke local não resolvem a divergência das ferramentas.
 
 ## Etapa 2 — memória e Obsidian
 
@@ -82,7 +85,7 @@ A versão 0.2 implementou diagnóstico, edição e restauração de notas, confl
 
 - Sincronização entre os dois PCs com identificação de conflitos.
 - Acesso autenticado pelo celular.
-- Provedor de modelo configurável, mantendo Gemini CLI como opção.
+- Provedor de modelo configurável, com avaliação de autenticação, disponibilidade e permissões de cada integração.
 - Modo com modelo local, após avaliar hardware e qualidade em português.
 - Controle de aplicativos por ferramentas específicas e com registro de execução.
 
@@ -90,5 +93,5 @@ A versão 0.2 implementou diagnóstico, edição e restauração de notas, confl
 
 ## Próximo passo recomendado
 
-Validar login Gemini, conversa com evidência de uma nota, transcrição e leitura no Windows. Depois, integrar perfis e ferramentas controladas para notas e tarefas. A busca semântica e as integrações CRM/Notion vêm após essa base.
+Preservar a prévia 0.4.0 para revisão e resolver o controle efetivo das ferramentas; a conversa permanece bloqueada antes de enviar contexto. Uma API de texto com chave e cobrança própria exige escolha do usuário. Depois validar resposta, transcrição e leitura. Pesquisa web, perfis Supremo no runtime e ferramentas de notas/tarefas exigem etapas próprias; busca semântica e CRM/Notion vêm após essa base.
 

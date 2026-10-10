@@ -1,19 +1,33 @@
-# Jarvis Gemini 0.3.0 — Windows
+# Jarvis 0.4.0 — prévia Antigravity no Windows
 
-Assistente de Henrique com painel local, Gemini CLI, memória Markdown/Obsidian, tarefas e voz opcional. A primeira versão foi recuperada do histórico e continuada neste workspace.
+Assistente de Henrique com painel local, memória Markdown/Obsidian, tarefas e voz opcional. Esta prévia prepara a integração ao Antigravity CLI, mas mantém a conversa bloqueada porque o CLI real não confirmou o conjunto de ferramentas permitido. A primeira versão foi recuperada do histórico e continuada neste workspace.
 
 ## Começar
 
-1. Execute **CONFIGURAR-GEMINI.bat**, escolha **Login with Google** e entre com sua conta. Teste uma pergunta e saia com `/quit`. O CLI 0.63.0 fica em `.tools` dentro do projeto, sem instalação global. Requer Node.js 20+.
+1. Execute **CONFIGURAR-ANTIGRAVITY.bat** para preparar o CLI local. O fluxo oferece novo login pelo navegador; digite credenciais apenas na interface Google. Esse login não habilita a conversa bloqueada nesta prévia. O Antigravity CLI 1.3.2 fica em `.tools/antigravity/agy.exe`, sem exigir Node.js. **CONFIGURAR-GEMINI.bat** encaminha para o novo script.
 2. Execute **INICIAR.bat**. O painel abre em http://127.0.0.1:8765. Requer Python 3.11+. O serviço foi testado com Python 3.14 no Windows.
-3. Abra **Verificar instalação** e use **Testar conexão Gemini**. Esse botão faz uma solicitação real e pode consumir sua cota. Encontrar o CLI não confirma o login.
+3. Abra **Verificar instalação** e use o teste de conexão Antigravity. Esse botão solicita uma resposta real e pode consumir sua cota. Encontrar o CLI não confirma o login nem a lista real de ferramentas permitidas.
 4. Abra `data/vault` como cofre no Obsidian e comece por `wiki/cerebro-jarvis.md`.
 
-Gemini recebe o pedido, trechos das notas recuperadas, tarefas e mensagens recentes. As notas ficam no PC. Não é necessário fornecer chave de API ao Jarvis. Benefícios e cotas seguem sua conta Google.
+Quando habilitada, a integração enviará pedido, trechos de notas, tarefas e mensagens recentes ao Antigravity. Nesta prévia, o gate bloqueia antes desse envio. As notas ficam no PC. Nenhuma chave de API é usada; autenticação e cotas Antigravity são uma verificação separada do bloqueio das ferramentas.
 
-## Novidades da versão 0.3.0
+## Prévia 0.4.0 — migração não concluída
 
-Esta entrega melhora a recuperação de evidências em notas longas, limita o contexto enviado ao Gemini e trata falhas do CLI. Os 32 testes do serviço passaram no Windows; JavaScript, sintaxe Python e o executável 0.3.0 foram verificados localmente. Veja [VALIDACAO.md](VALIDACAO.md). A conversa autenticada com Google e a voz real continuam pendentes.
+O Google encerrou o acesso de contas individuais, Google AI Pro e Ultra pelo login Google do Gemini CLI em 18 de junho de 2026 e orienta a migração para Antigravity. Veja o [aviso oficial](https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals).
+
+O CLI nativo 1.3.2 foi instalado localmente com SHA-512 verificado. A instalação não modifica PATH, aliases nem configurações globais. Não é instalado SDK e não é solicitada chave de API.
+
+A integração pretende oferecer conversa somente texto. O perfil local `jarvis-chat` declara `tools: []` e comandos desativados, mas o probe do CLI real 1.3.2 retornou cerca de 59 ferramentas, incluindo comandos, arquivos, web, navegador, MCP e mensagens. O runtime confirmou o nome do agente e bloqueou a sessão antes de enviar pedido ou notas porque `init.tools` não estava vazio. **A conversa não está pronta; fazer login sozinho não resolve esse bloqueio.** Não foi demonstrada uma restrição efetiva das ferramentas nesta versão do CLI.
+
+Os 42 testes locais passaram; JavaScript, sintaxe Python, instalação nova com download/SHA-512, build e smoke HTTP do executável 0.4.0 foram aprovados. A tentativa de allowlist também manteve as ferramentas anunciadas, sem solução efetiva observada no CLI 1.3.2. Esses checks não demonstram permissões adequadas ou resposta autenticada. Login e áudio reais continuam pendentes. Veja [VALIDACAO.md](VALIDACAO.md).
+
+Pacotes desta etapa: `Jarvis-Gemini-0.4-Previa-Codigo.zip` e `Jarvis-Gemini-0.4-Previa-Windows.zip`, com hashes em `SHA256SUMS.txt`. São uma prévia local para revisão, não uma migração pronta ou publicação externa.
+
+Guia: [Jarvis 0.4](vault/wiki/jarvis-versao-0.4.md). As funcionalidades e o orçamento de contexto da versão 0.3 são preservados. Os arquivos históricos de versões anteriores continuam descrevendo seus respectivos provedores.
+
+## Base preservada da versão 0.3.0
+
+A versão 0.3 melhorou a recuperação de evidências em notas longas e o tratamento de falhas do CLI. Seus 32 testes e executável foram verificados localmente; esses resultados são históricos e não validam o novo provedor. Veja [VALIDACAO.md](VALIDACAO.md).
 
 - Seleção de trechos relacionados ao pedido em notas longas, com arquivo, posições e linhas de origem, incluindo evidências após os primeiros 20.000 caracteres.
 - Orçamento de 32.000 caracteres para o prompt completo, contando instruções, JSON serializado e pedido. Pedidos aceitos de até 12.000 caracteres são preservados integralmente.
@@ -23,9 +37,9 @@ O contexto prioriza notas, depois tarefas e histórico. Inclui até seis notas c
 
 Guia da entrega: [Jarvis 0.3](vault/wiki/jarvis-versao-0.3.md). Estes itens não instalam perfis de agentes nem novas ferramentas no aplicativo.
 
-## Novidades da versão 0.2
+## Recursos preservados da versão 0.2
 
-- Diagnóstico de Python, Node.js, CLI e compatibilidade.
+- Diagnóstico de instalação e compatibilidade, atualizado para o novo CLI na 0.4.
 - Edição do Markdown completo com histórico e restauração de versões.
 - Proteção contra sobrescrever alterações feitas no Obsidian desde a abertura da nota.
 - Backup ZIP do cofre, conversa, tarefas e histórico.
@@ -43,7 +57,7 @@ Guia da entrega: [Jarvis 0.3](vault/wiki/jarvis-versao-0.3.md). Estes itens não
 | `data/state.json` | Até 200 mensagens e tarefas |
 | `data/history` | Versões anteriores das notas editadas pelo painel |
 | `data/backups` | Backups criados pelo botão |
-| `data/workspace` | Política de ferramentas do Gemini |
+| `data/workspace` | Workspace e perfil restrito do Antigravity |
 
 Para migrar uma instalação anterior, encerre o Jarvis, faça uma cópia dos dados e copie a pasta inteira para `data`. Guias existentes são preservados; compare atualizações com `vault/wiki` no código-fonte.
 
@@ -61,7 +75,7 @@ O histórico registra edições feitas pelo painel. Alterações diretas no Obsi
 
 `GERAR-EXE.bat` gera `dist/JarvisGemini/JarvisGemini.exe`. A compilação padrão inclui texto e leitura SAPI; transcrição por microfone fica disponível pelo código-fonte com as dependências opcionais. O executável abre o navegador; uma janela desktop independente continua planejada.
 
-Distribua toda a pasta `dist/JarvisGemini`. Node.js continua necessário. Use `CONFIGURAR-GEMINI.bat` dessa pasta para instalar o CLI e entrar com Google. Por padrão, os dados do executável ficam em `%LOCALAPPDATA%/JarvisGemini`. Use `--data-dir` para compartilhar os dados da versão fonte.
+Mantenha toda a pasta `dist/JarvisGemini`. Use `CONFIGURAR-ANTIGRAVITY.bat` dessa pasta para preparar o CLI; Node.js não é requisito em produção. Por compatibilidade, o nome do executável e o caminho padrão de dados `%LOCALAPPDATA%/JarvisGemini` são preservados. Use `--data-dir` para compartilhar os dados da versão fonte. O build 0.4.0 foi verificado localmente; a conversa permanece bloqueada pelo conjunto de ferramentas anunciado pelo CLI real.
 
 ## Verificação e próximos passos
 
@@ -71,16 +85,16 @@ node --check web/app.js
 node --check web/workspace.js
 ```
 
-Os testes exercitam memória, API, origem/token, conflitos, histórico, restauração, backup, importação e integração CLI simulada. Login Gemini e microfone requerem validação pelo usuário. Não há respostas simuladas no aplicativo.
+Os testes exercitam memória, API, origem/token, conflitos, histórico, restauração, backup, importação e integração CLI simulada. Node.js é usado nos comandos de verificação do JavaScript acima, não pelo Antigravity em produção. Login Antigravity, confirmação real das ferramentas e áudio requerem validação pelo usuário. Não há respostas simuladas no aplicativo.
 
-Próximas etapas: validar conversa real e áudio; depois integrar perfis e ferramentas para criar notas/tarefas pela conversa e avaliar busca semântica. CRM/Notion, agendamento, sincronização e controle de aplicativos continuam planejados. A validação local não confirma instalação em outro PC.
+Próximo gate: demonstrar isolamento e controle efetivo das ferramentas no CLI real antes de habilitar conversa. A alternativa é uma API de texto com chave e regras próprias de quota/cobrança, após escolha do usuário; pode haver Free Tier elegível e tiers pagos. A API programática é [separada da assinatura Google AI Pro](https://ai.google.dev/gemini-api/docs/google-ai-plans#limitations-and-compatibility); confira [acesso e cobrança da Gemini API](https://ai.google.dev/gemini-api/docs/billing). Nenhuma API foi configurada nesta entrega. Depois validar resposta e áudio. Perfis Supremo, novas ferramentas, busca semântica e integrações continuam planejados. A validação local não confirma outro PC nem publicação externa.
 
 ## Referências oficiais
 
-- [Instalação do Gemini CLI](https://geminicli.com/docs/get-started/installation/)
-- [Autenticação](https://geminicli.com/docs/get-started/authentication/)
-- [Modo headless e JSON](https://geminicli.com/docs/cli/headless/)
-- [Políticas de ferramentas](https://geminicli.com/docs/reference/policy-engine/)
+- [Encerramento do acesso individual pelo Gemini CLI](https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals)
+- [Migração para Antigravity CLI](https://antigravity.google/docs/cli/gcli-migration)
+- [Planos e cotas Antigravity](https://antigravity.google/pricing)
+- [Google AI Pro e uso programático da API](https://ai.google.dev/gemini-api/docs/google-ai-plans)
 - [Whisper local](https://github.com/SYSTRAN/faster-whisper)
 
 `server.py` coordena serviço e CLI; `web` contém o painel; `vault/wiki` contém os guias; `tests` contém os testes sem conta Google.

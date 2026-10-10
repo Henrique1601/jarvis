@@ -1,6 +1,5 @@
 """Failure recovery with simulated CLI/voice; no account or microphone required."""
 import json
-import subprocess
 import tempfile
 import threading
 import unittest
@@ -21,73 +20,57 @@ class StoreFixture(unittest.TestCase):
         self.store = server.Store(self.temp.name)
 
 
-class GeminiResponseTests(StoreFixture):
-    OUTPUT_MARKER = 'synthetic-private-stdout'
-    ERROR_MARKER = 'synthetic-private-stderr'
+class AiWrapperTests(StoreFixture):
+    def test_runtime_safe_errors_preserve_guidance_without_persisting_messages(self):
+        messages = (
+            'O Antigravity demorou mais de 3 minutos. Tente novamente.',
+            'Confira o login do Antigravity e sua conexão.',
+            'Não foi possível iniciar o Antigravity. Confira a instalação.',
+            'O Antigravity retornou um formato inesperado. Tente novamente.',
+            'O Antigravity não retornou uma resposta de texto.',
+        )
+        for message in messages:
+            with self.subTest(message=message):
+                with patch.object(server.antigravity, 'ask', side_effect=RuntimeError(message)):
+                    with self.assertRaises(RuntimeError) as raised:
+                        server.ask_ai(self.store, 'Pedido de teste')
+                self.assertEqual(str(raised.exception), message)
+                self.assertNotIn('synthetic-private-stdout', str(raised.exception))
+                self.assertNotIn('synthetic-private-stderr', str(raised.exception))
+                self.assertEqual(self.store.state['messages'], [])
 
-    def assert_safe_cli_error(self, result, expected_hint='login'):
-        with patch.object(server, 'gemini_command', return_value=['simulated-gemini']), \
-                patch.object(server.subprocess, 'run', return_value=result):
-            with self.assertRaises(RuntimeError) as raised:
-                server.ask_gemini(self.store, 'Pedido de teste')
-        message = str(raised.exception)
-        self.assertNotIn(self.OUTPUT_MARKER, message)
-        self.assertNotIn(self.ERROR_MARKER, message)
-        self.assertIn(expected_hint.lower(), message.lower())
+    def test_generated_context_is_delegated_to_runtime(self):
+        note_id = self.store.note('Memória relevante', 'evidenciaantigravity confirmada')
+        text = 'Explique evidenciaantigravity'
+        captured = {}
+        def fake_ask(app_root, workspace, prompt, timeout=180):
+            captured.update(prompt=prompt, app_root=app_root, workspace=workspace, timeout=timeout)
+            return 'Resposta simulada'
+        with patch.object(server.antigravity, 'ask', side_effect=fake_ask):
+            self.assertEqual(server.ask_ai(self.store, text), 'Resposta simulada')
+        suffix = '\nPedido atual: ' + text
+        prompt = captured['prompt']
+        sent = json.loads(prompt[len(server.PROMPT_INSTRUCTIONS):-len(suffix)])
+        self.assertTrue(prompt.startswith(server.PROMPT_INSTRUCTIONS))
+        self.assertTrue(prompt.endswith(suffix))
+        self.assertEqual(sent['notas'][0]['arquivo'], note_id)
+        self.assertIn('evidenciaantigravity', sent['notas'][0]['trechos'][0]['texto'])
+        self.assertEqual(captured['app_root'], server.app_root())
+        self.assertEqual(captured['workspace'], self.store.workspace)
+        self.assertEqual(captured['timeout'], 180)
+        self.assertLessEqual(len(prompt), server.PROMPT_MAX_CHARS)
         self.assertEqual(self.store.state['messages'], [])
 
-    def test_timeout_is_safe_and_explains_retry(self):
-        failure = subprocess.TimeoutExpired(['simulated-gemini'], 180,
-                                            output=self.OUTPUT_MARKER, stderr=self.ERROR_MARKER)
-        with patch.object(server, 'gemini_command', return_value=['simulated-gemini']), \
-                patch.object(server.subprocess, 'run', side_effect=failure):
-            with self.assertRaises(RuntimeError) as raised:
-                server.ask_gemini(self.store, 'Pedido de teste')
-        message = str(raised.exception)
-        self.assertNotIn(self.OUTPUT_MARKER, message)
-        self.assertNotIn(self.ERROR_MARKER, message)
-        self.assertIn('minut', message.lower())
-        self.assertIn('tente', message.lower())
-        self.assertEqual(self.store.state['messages'], [])
-
-    def test_invalid_json_is_safe_and_explains_login(self):
-        result = subprocess.CompletedProcess([], 0, self.OUTPUT_MARKER, self.ERROR_MARKER)
-        self.assert_safe_cli_error(result)
-
-    def test_cli_start_oserror_is_safe_and_explains_configuration(self):
-        failure = OSError(self.OUTPUT_MARKER + ' ' + self.ERROR_MARKER)
-        with patch.object(server, 'gemini_command', return_value=['simulated-gemini']), \
-                patch.object(server.subprocess, 'run', side_effect=failure):
-            with self.assertRaises(RuntimeError) as raised:
-                server.ask_gemini(self.store, 'Pedido de teste')
-        message = str(raised.exception)
-        self.assertIn('Node', message)
-        self.assertIn('CONFIGURAR-GEMINI.bat', message)
-        self.assertNotIn(self.OUTPUT_MARKER, message)
-        self.assertNotIn(self.ERROR_MARKER, message)
-        self.assertEqual(self.store.state['messages'], [])
-
-    def test_unexpected_json_shapes_are_safe_and_explain_format(self):
-        for payload in ([self.OUTPUT_MARKER], None, self.OUTPUT_MARKER):
-            with self.subTest(payload_type=type(payload).__name__):
-                result = subprocess.CompletedProcess([], 0, json.dumps(payload), self.ERROR_MARKER)
-                self.assert_safe_cli_error(result, expected_hint='formato')
-
-    def test_cli_exit_and_error_payload_are_safe_and_explain_login(self):
-        for returncode, payload in ((1, {'response': self.OUTPUT_MARKER}),
-                                    (41, {'error': {'message': self.OUTPUT_MARKER}}),
-                                    (0, {'error': {'message': self.OUTPUT_MARKER}})):
-            with self.subTest(returncode=returncode, error_payload='error' in payload):
-                result = subprocess.CompletedProcess([], returncode, json.dumps(payload), self.ERROR_MARKER)
-                hint = 'CONFIGURAR-GEMINI.bat' if returncode == 41 else 'login'
-                self.assert_safe_cli_error(result, expected_hint=hint)
-
-    def test_missing_empty_or_nontext_response_explains_missing_text(self):
-        for payload in ({}, {'response': ''}, {'response': ' \n\t'},
-                        {'response': None}, {'response': 123}):
-            with self.subTest(payload=payload):
-                result = subprocess.CompletedProcess([], 0, json.dumps(payload), self.ERROR_MARKER)
-                self.assert_safe_cli_error(result, expected_hint='resposta de texto')
+    def test_prepared_prompt_does_not_trigger_context_regeneration(self):
+        captured = []
+        prepared = 'Contexto pronto\nPedido atual: Pedido de teste'
+        def fake_ask(app_root, workspace, prompt, timeout=180):
+            captured.append(prompt)
+            return 'Resposta simulada'
+        with patch.object(server.antigravity, 'ask', side_effect=fake_ask), \
+                patch.object(self.store, 'prompt', side_effect=AssertionError('Contexto foi regenerado.')):
+            self.assertEqual(server.ask_ai(self.store, 'Pedido de teste', prepared_prompt=prepared), 'Resposta simulada')
+        self.assertEqual(captured, [prepared])
 
 
 class HttpRecoveryTests(StoreFixture):
@@ -131,51 +114,73 @@ class HttpRecoveryTests(StoreFixture):
                          [('user', 'Depois da falha'), ('assistant', 'Resposta recuperada')])
 
     def test_chat_failure_releases_ai_lock_and_next_request_succeeds(self):
-        with patch.object(server, 'ask_gemini', side_effect=RuntimeError('Confira o login.')):
+        with patch.object(server.antigravity, 'ask', side_effect=RuntimeError('Confira o login.')):
             status, result = self.post('chat', {'text': 'Pedido que falha'})
         self.assertEqual(status, 400)
         self.assertIn('login', result['error'])
         self.assertFalse(server.AI_LOCK.locked())
         self.assert_no_persisted_messages()
-        with patch.object(server, 'ask_gemini', return_value='Resposta recuperada'):
+        with patch.object(server.antigravity, 'ask', return_value='Resposta recuperada'):
             status, result = self.post('chat', {'text': 'Depois da falha'})
         self.assertEqual(status, 200)
         self.assertEqual(result['content'], 'Resposta recuperada')
         self.assert_success_pair_persisted()
 
-    def test_gemini_check_failure_releases_ai_lock_and_retry_succeeds(self):
-        with patch.object(server, 'ask_gemini', side_effect=RuntimeError('Confira o login.')):
-            status, _ = self.post('gemini-check', {})
+    def test_ai_check_failure_releases_ai_lock_and_retry_succeeds(self):
+        with patch.object(server.antigravity, 'ask', side_effect=RuntimeError('Confira o login.')):
+            status, _ = self.post('ai-check', {})
         self.assertEqual(status, 400)
         self.assertFalse(server.AI_LOCK.locked())
         self.assert_no_persisted_messages()
-        with patch.object(server, 'ask_gemini', return_value='OK'):
-            status, result = self.post('gemini-check', {})
+        with patch.object(server.antigravity, 'ask', return_value='OK'):
+            status, result = self.post('ai-check', {})
         self.assertEqual(status, 200)
         self.assertTrue(result['ok'])
         self.assert_no_persisted_messages()
 
+    def test_ai_check_and_legacy_alias_do_not_send_personal_memory(self):
+        private_marker = 'synthetic-personal-memory'
+        self.store.note('Memória privada', private_marker)
+        self.store.message('user', private_marker)
+        baseline = list(self.store.state['messages'])
+        prompts = []
+        def fake_ask(app_root, workspace, prompt, timeout=180):
+            prompts.append(prompt)
+            return 'OK'
+        with patch.object(server.antigravity, 'ask', side_effect=fake_ask):
+            for route in ('ai-check', 'gemini-check'):
+                with self.subTest(route=route):
+                    status, result = self.post(route, {})
+                    self.assertEqual(status, 200)
+                    self.assertTrue(result['ok'])
+        self.assertEqual(len(prompts), 2)
+        self.assertEqual(prompts[0], prompts[1])
+        for prompt in prompts:
+            self.assertNotIn(private_marker, prompt)
+        self.assertEqual(self.store.state['messages'], baseline)
+
     def test_chat_sends_late_evidence_and_reports_exact_serialized_sources(self):
-        evidence = 'evidenciagemma'
+        evidence = 'evidenciaantigravity'
         content = ('# Pesquisa de incidente\n\n'
                    + 'Registro diário sem relação com o pedido atual.\n' * 800
-                   + '\nA solução confirmada foi evidenciagemma na configuração local.\n')
+                   + '\nA solução confirmada foi evidenciaantigravity na configuração local.\n')
         note_id = 'raw/incidente-longo.md'
         (self.store.vault / note_id).write_text(content, encoding='utf-8')
         self.store.note('Outra memória', 'Informações sem relação com o incidente.')
         self.assertGreater(content.index(evidence), 20000)
-        request_text = 'Explique a evidenciagemma'
-        cli_result = subprocess.CompletedProcess([], 0, json.dumps({'response': 'Resposta simulada'}), '')
+        request_text = 'Explique a evidenciaantigravity'
+        captured = []
+        def fake_ask(app_root, workspace, prompt, timeout=180):
+            captured.append(prompt)
+            return 'Resposta simulada'
 
-        # Mock only the process boundary: Handler, retrieval and prompt assembly
-        # must all run normally for this request.
-        with patch.object(server, 'gemini_command', return_value=['simulated-gemini']), \
-                patch.object(server.subprocess, 'run', return_value=cli_result) as run:
+        # Mock the runtime boundary: Handler, retrieval and assembly run normally.
+        with patch.object(server.antigravity, 'ask', side_effect=fake_ask) as ask:
             status, reply = self.post('chat', {'text': request_text})
 
         self.assertEqual(status, 200)
-        run.assert_called_once()
-        serialized = run.call_args.kwargs['input']
+        ask.assert_called_once()
+        serialized = captured[0]
         suffix = '\nPedido atual: ' + request_text
         self.assertTrue(serialized.startswith(server.PROMPT_INSTRUCTIONS))
         self.assertTrue(serialized.endswith(suffix))
@@ -207,7 +212,7 @@ class HttpRecoveryTests(StoreFixture):
                 raise AssertionError('O teste não liberou o pedido simulado.')
             raise RuntimeError('Falha simulada; confira o login.')
 
-        with patch.object(server, 'ask_gemini', side_effect=delayed_failure) as ask:
+        with patch.object(server.antigravity, 'ask', side_effect=delayed_failure) as ask:
             with ThreadPoolExecutor(max_workers=1) as pool:
                 first = pool.submit(self.post, first_route, {'text': 'Pedido que falha'})
                 try:
@@ -223,16 +228,16 @@ class HttpRecoveryTests(StoreFixture):
                 self.assertEqual(status, 400)
         self.assertFalse(server.AI_LOCK.locked())
         self.assert_no_persisted_messages()
-        with patch.object(server, 'ask_gemini', return_value='Resposta recuperada'):
+        with patch.object(server.antigravity, 'ask', return_value='Resposta recuperada'):
             status, _ = self.post('chat', {'text': 'Depois da falha'})
         self.assertEqual(status, 200)
         self.assert_success_pair_persisted()
 
-    def test_chat_blocks_concurrent_gemini_check_and_recovers(self):
-        self.assert_concurrent_ai_failure_recovers('chat', 'gemini-check')
+    def test_chat_blocks_concurrent_ai_check_and_recovers(self):
+        self.assert_concurrent_ai_failure_recovers('chat', 'ai-check')
 
-    def test_gemini_check_blocks_concurrent_chat_and_recovers(self):
-        self.assert_concurrent_ai_failure_recovers('gemini-check', 'chat')
+    def test_ai_check_blocks_concurrent_chat_and_recovers(self):
+        self.assert_concurrent_ai_failure_recovers('ai-check', 'chat')
 
     def test_speak_failure_releases_voice_lock_and_retry_succeeds(self):
         with patch.object(server, 'speak', side_effect=RuntimeError('Falha de voz simulada.')):

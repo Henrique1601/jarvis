@@ -7,7 +7,7 @@ h1,.brand{font-family:'Bahnschrift','Trebuchet MS',sans-serif}
 .diagnostic-row,.history-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--line);font-size:12px}
 .diagnostic-row>span{color:var(--muted)}
 .diagnostic-row>strong{text-align:right;font-weight:500}
-#test-gemini{margin-top:22px}
+#test-ai{margin-top:22px}
 #read-title{font-size:22px;line-height:1.35;margin:12px 0}
 #read-path{color:var(--muted);font-size:11px;overflow-wrap:anywhere}
 #note-content{font-family:Consolas,monospace;line-height:1.7;resize:vertical;min-height:160px;max-height:55vh}
@@ -17,3 +17,5 @@ h1,.brand{font-family:'Bahnschrift','Trebuchet MS',sans-serif}
 .message-sources{margin-top:12px;font-size:11px;color:var(--muted);white-space:normal}
 .message-sources button{display:block;text-align:left;color:var(--accent);margin-top:5px;font-weight:400}
 @media(max-width:500px){.diagnostic-row,.history-row{gap:8px;flex-wrap:wrap}.history-row button{border:1px solid var(--line)}}
+
+.migration-status{margin:0;padding:12px 24px;text-align:center;color:var(--muted);border-bottom:1px solid var(--line);font-size:13px}

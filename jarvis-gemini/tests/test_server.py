@@ -1,13 +1,11 @@
 import json
 import tempfile
-from types import SimpleNamespace
 import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
-import subprocess
 import server
 
 class Tests(unittest.TestCase):
@@ -31,24 +29,30 @@ class Tests(unittest.TestCase):
             self.store.note('X','Y','../../')
         with self.assertRaises(ValueError):
             self.store.note('X','')
-    def test_gemini_stdin_and_error(self):
-        result=subprocess.CompletedProcess([],0,json.dumps({'response':'Olá Henrique'}),'')
-        with patch.object(server, 'gemini_command', return_value=['gemini']), patch.object(server.subprocess, 'run', return_value=result) as run:
-            self.assertEqual(server.ask_gemini(self.store, '$(danger)'), 'Olá Henrique')
-            args, kwargs=run.call_args
-            self.assertNotIn('$(danger)', args[0])
-            self.assertIn('$(danger)', kwargs['input'])
-            self.assertNotIn('GEMINI_API_KEY', kwargs['env'])
-        with patch.object(server, 'gemini_command', return_value=['gemini']), patch.object(server.subprocess,'run',return_value=subprocess.CompletedProcess([],1,'{"error":{"message":"quota"}}','')):
-            with self.assertRaises(RuntimeError):
-                server.ask_gemini(self.store,'Oi')
-    def test_windows_node_entry(self):
-        package=Path(self.temp.name)/'node_modules'/'@google'/'gemini-cli'
-        package.mkdir(parents=True)
-        (package/'package.json').write_text('{"bin":{"gemini":"dist/index.js"}}')
-        with patch.object(server, 'cli_root', return_value=Path(self.temp.name)), patch.object(server,'os',SimpleNamespace(name='nt')), patch.object(server.shutil,'which',side_effect=lambda name: str(Path(self.temp.name)/'gemini.cmd') if name=='gemini' else 'node'):
-            command=server.gemini_command()
-            self.assertEqual(command,['node',str(package/'dist/index.js')])
+    def test_ai_prompt_delegation_and_error(self):
+        captured = {}
+        def fake_ask(app_root, workspace, prompt, timeout=180):
+            captured.update(app_root=app_root, workspace=workspace, prompt=prompt, timeout=timeout)
+            return 'Olá Henrique'
+        with patch.object(server.antigravity, 'ask', side_effect=fake_ask):
+            self.assertEqual(server.ask_ai(self.store, '$(danger)'), 'Olá Henrique')
+        self.assertEqual(captured['app_root'], server.app_root())
+        self.assertEqual(captured['workspace'], self.store.workspace)
+        self.assertIn('$(danger)', captured['prompt'])
+        self.assertEqual(captured['timeout'], 180)
+        with patch.object(server.antigravity, 'ask', side_effect=RuntimeError('Confira o login do Antigravity.')):
+            with self.assertRaisesRegex(RuntimeError, 'Antigravity'):
+                server.ask_ai(self.store, 'Oi')
+    def test_ai_prepared_prompt_is_sent_unchanged(self):
+        prepared = 'Contexto preparado\nPedido atual: Olá'
+        captured = []
+        def fake_ask(app_root, workspace, prompt, timeout=180):
+            captured.append(prompt)
+            return 'Resposta de teste'
+        with patch.object(server.antigravity, 'ask', side_effect=fake_ask), \
+                patch.object(self.store, 'prompt', side_effect=AssertionError('Não gere outro contexto.')):
+            self.assertEqual(server.ask_ai(self.store, 'Olá', prepared_prompt=prepared), 'Resposta de teste')
+        self.assertEqual(captured, [prepared])
     def test_api_and_origin_token(self):
         http=server.ThreadingHTTPServer(('127.0.0.1',0),server.Handler)
         http.store,http.token=self.store,'test-token'
@@ -56,7 +60,12 @@ class Tests(unittest.TestCase):
         base=f'http://127.0.0.1:{http.server_port}'
         try:
             self.assertEqual(urlopen(base+'/').status,200)
-            self.assertEqual(json.load(urlopen(base+'/api/state'))['token'],'test-token')
+            with patch.object(server.antigravity, 'available', return_value=True):
+                with urlopen(base+'/api/state') as response:
+                    state = json.load(response)
+            self.assertEqual(state['token'],'test-token')
+            self.assertEqual(state['provider'],'Antigravity CLI')
+            self.assertTrue(state['aiInstalled'])
             def post(path, data, headers=None):
                 return urlopen(Request(base+'/api/'+path,data=json.dumps(data).encode(),headers=headers or {'X-Jarvis-Token':'test-token','Content-Type':'application/json'}))
             with self.assertRaises(HTTPError) as error:
@@ -71,7 +80,7 @@ class Tests(unittest.TestCase):
             task=json.load(post('task',{'text':'Estudar'}))
             json.load(post('task',{'id':task['id'],'done':True}))
             self.assertTrue(self.store.state['tasks'][0]['done'])
-            with patch.object(server,'ask_gemini',return_value='Resposta de teste'):
+            with patch.object(server.antigravity,'ask',return_value='Resposta de teste'):
                 msg=json.load(post('chat',{'text':'Olá'}))
                 self.assertEqual(msg['content'],'Resposta de teste')
             self.assertEqual(len(self.store.state['messages']),2)

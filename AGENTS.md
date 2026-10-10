@@ -28,7 +28,7 @@ Classifique a etapa atual pelas evidências de código e testes. Defina o result
 
 - Aplicação: `jarvis-gemini/`.
 - Plataforma: Windows, painel web local, executável opcional.
-- IA: Gemini CLI com login Google; credenciais são inseridas pelo usuário na interface apropriada.
+- IA: Antigravity CLI com login Google, em migração após o encerramento do acesso individual pelo Gemini CLI. Credenciais são inseridas pelo usuário na interface apropriada.
 - Memória: Markdown compatível com Obsidian, com edição, histórico e backup.
 - Referências: `jarvis-gemini/README.md`, `jarvis-gemini/VALIDACAO.md`, `jarvis-gemini/vault/wiki/cerebro-jarvis.md`.
 - Validação: `python -m unittest discover -s tests -v`, executado em `jarvis-gemini`.

@@ -116,26 +116,27 @@ class WorkspaceTests(unittest.TestCase):
             restored = post('note-restore', {'id': note_id, 'version': history[0]['id'], 'revision': updated['revision']})
             self.assertEqual(restored['content'], note['content'])
             self.assertTrue(Path(post('backup', {})['path']).exists())
-            with patch.object(server, 'ask_gemini', return_value='Plano pronto'):
+            with patch.object(server.antigravity, 'ask', return_value='Plano pronto'):
                 reply = post('chat', {'text': 'Plano'})
                 self.assertEqual(reply['sources'][0]['id'], note_id)
             with patch.object(server, 'diagnostics', return_value={'login': 'Não testado'}):
                 self.assertEqual(post('diagnostics', {})['login'], 'Não testado')
-            with patch.object(server, 'ask_gemini', return_value='OK'):
-                self.assertTrue(post('gemini-check', {})['ok'])
+            with patch.object(server.antigravity, 'ask', return_value='OK'):
+                self.assertTrue(post('ai-check', {})['ok'])
             self.assertEqual(len(self.store.state['messages']), 2)
         finally:
             http.shutdown()
             http.server_close()
             thread.join()
 
-    def test_local_cli_package_entry_is_read_from_metadata(self):
+    def test_ai_availability_uses_application_root(self):
         root = Path(self.temp.name)
-        package = root / '.tools/node_modules/@google/gemini-cli'
-        package.mkdir(parents=True)
-        (package / 'package.json').write_text(json.dumps({'bin': {'gemini': 'bundle/gemini.js'}}))
-        with patch.object(server, 'cli_root', return_value=root), patch.object(server.shutil, 'which', return_value='node'):
-            self.assertEqual(server.gemini_command(), ['node', str(package / 'bundle/gemini.js')])
+        with patch.object(server, 'app_root', return_value=root), \
+                patch.object(server.antigravity, 'available', return_value=True) as available:
+            self.assertTrue(server.ai_available())
+        available.assert_called_once_with(root)
+        with patch.object(server.antigravity, 'available', return_value=False):
+            self.assertFalse(server.ai_available())
 
 
 if __name__ == '__main__':
