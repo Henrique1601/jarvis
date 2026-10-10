@@ -102,7 +102,7 @@ diagnosticButton.onclick = async () => {
     const result = await api('diagnostics', {});
     $('diagnostic-content').replaceChildren();
     for (const [label, value] of [
-      ['Jarvis', result.version], ['Python', result.python],
+      ['Jarvis', result.version], result.cloud ? ['Servidor', 'Node.js'] : ['Python', result.python],
       [result.provider || 'Antigravity CLI', result.cli || 'Não encontrado'], ['Integração', result.compatible ? 'Opções compatíveis' : 'Precisa de configuração'],
       ['Transcrição local', result.voiceInstalled ? 'Instalada' : 'Opcional • não instalada'], ['Conta Google', result.login]
     ]) {

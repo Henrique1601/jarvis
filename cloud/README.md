@@ -2,7 +2,7 @@
 
 Aplicação online com autenticação e persistência por usuário no Supabase e respostas pela Gemini API no servidor. O destino do frontend e da API é Vercel. Esta implementação usa serviços reais; não é uma demonstração com respostas fictícias.
 
-**Situação:** [publicada na Vercel](https://jarvis-ten-pi-14.vercel.app/), com build e 23 testes aprovados. Supabase real preparado e verificado por SQL. O primeiro login e a persistência pela interface aguardam a criação segura da conta pelo usuário. A chave Gemini será configurada depois, conforme escolha do usuário.
+**Situação:** [publicada na Vercel](https://jarvis-ten-pi-14.vercel.app/), com build e 27 testes aprovados. Supabase real preparado e verificado por SQL. O primeiro login e a persistência pela interface aguardam a criação segura da conta pelo usuário. A chave Gemini será configurada depois, conforme escolha do usuário.
 
 ## Arquitetura e dados
 
@@ -99,7 +99,7 @@ Não há túnel para o computador Windows nesta arquitetura. O serviço local pe
 
 | Verificação | Resultado |
 | --- | --- |
-| Testes locais web | 23 aprovados (15 de backend e 8 de frontend), em aproximadamente 0,72 s; sem login/Gemini reais |
+| Testes locais web | 27 aprovados (15 de backend e 12 de frontend), em aproximadamente 1,09 s; sem login/Gemini reais |
 | Build do frontend | `npm ci` e `npm run build` aprovados; auditoria reportou zero vulnerabilidades conhecidas |
 | Suíte Windows nesta alteração | 42 testes aprovados, em 11,074 s |
 | Schema no projeto Supabase real | Migração `jarvis_cloud_v1` aplicada; allowlist do proprietário inserida pela interface administrativa |
@@ -118,3 +118,7 @@ O script `supabase/verify.sql` reproduz os testes de banco com usuários sintét
 ## Relação com o Windows
 
 O código-fonte Windows continua em `jarvis-gemini/`, com prévia 0.4.0 e conversa Antigravity bloqueada pela lista real de ferramentas. O modelo de dados da web é separado. **Sincronização, importação automática do cofre e compartilhamento do login não foram implementados.** Áudio Whisper/SAPI do Windows também não integra esta entrega web automaticamente.
+
+## Sessão entre abas
+
+A confirmação de e-mail pode abrir outra aba. A sessão usa o armazenamento compartilhado padrão do Supabase SDK; eventos de autenticação são confirmados pela sessão salva e pela API antes de mostrar o painel. A atualização migra a sessão antiga da mesma aba quando ela ainda existe. Se a aba autenticada foi fechada antes da atualização, entre novamente. Há regressões para broadcast sem sessão, login entre abas, migração e troca de conta.

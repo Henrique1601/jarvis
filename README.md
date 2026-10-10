@@ -41,7 +41,7 @@ Credenciais, cofre de uso, histórico pessoal, dependências, backups e binário
 
 ## Verificação e publicação
 
-Os 42 testes Windows e os 23 testes web (15 de backend e 8 de frontend) passaram nesta alteração. O build web com `npm ci` e `npm run build` passou, com auditoria de dependências sem vulnerabilidades conhecidas reportadas. O schema foi aplicado no Supabase real e testes transacionais com três usuários sintéticos, revertidos ao terminar, verificaram conflitos, histórico, tarefas, chat atômico, quotas, backup e isolamento RLS/RPC. Login pela interface, persistência pela aplicação publicada e resposta Gemini ainda exigem verificações próprias. Os resultados históricos Windows estão em [VALIDACAO.md](jarvis-gemini/VALIDACAO.md).
+Os 42 testes Windows e os 27 testes web (15 de backend e 12 de frontend) passaram nesta alteração. O build web com `npm ci` e `npm run build` passou, com auditoria de dependências sem vulnerabilidades conhecidas reportadas. O schema foi aplicado no Supabase real e testes transacionais com três usuários sintéticos, revertidos ao terminar, verificaram conflitos, histórico, tarefas, chat atômico, quotas, backup e isolamento RLS/RPC. Login pela interface, persistência pela aplicação publicada e resposta Gemini ainda exigem verificações próprias. Os resultados históricos Windows estão em [VALIDACAO.md](jarvis-gemini/VALIDACAO.md).
 
 O [workflow CI](.github/workflows/ci.yml) executa a suíte Python 3.14 no Windows e testes/build Node.js 24 no Ubuntu em push para `main` e pull requests. As actions usam SHAs verificados e permissão somente de leitura do código. [Os dois jobs passaram no GitHub](https://github.com/Henrique1601/jarvis/actions/runs/38057036402) para o commit `ee7749f`; os testes não usam credenciais reais.
 

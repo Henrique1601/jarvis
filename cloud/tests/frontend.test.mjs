@@ -14,8 +14,14 @@ const source = await readFile(new URL('frontend/platform.js', root), 'utf8');
 const owner = { user: { email: 'owner@example.test' }, access_token: 'fixture-token', expires_at: Math.floor(Date.now() / 1000) + 3600 };
 const response = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 const flush = async () => { for (let i = 0; i < 8; i++) await new Promise(setImmediate); };
+const storageKey = 'sb-fixture-auth-token';
+function storage(initial = {}) {
+  const values = new Map(Object.entries(initial));
+  return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, String(value)), removeItem: key => values.delete(key) };
+}
 
-function harness({ session = null, configured = true, state = () => response(200, {}), api = () => response(200, {}), signOutError = null, refreshError = null } = {}) {
+function harness({ session = null, configured = true, state = () => response(200, {}), api = () => response(200, {}), signOutError = null, refreshError = null,
+  sharedStorage = storage(), tabStorage = storage(), useStoredSession = false } = {}) {
   class Element {
     constructor() { this.hidden = false; this.disabled = false; this.value = ''; this.textContent = ''; this.children = []; }
     append(...children) { this.children.push(...children); }
@@ -30,7 +36,8 @@ function harness({ session = null, configured = true, state = () => response(200
   const body = new Element(); body.classList = { add: value => classes.add(value), remove: value => classes.delete(value), contains: value => classes.has(value) };
   const calls = []; const subscribers = []; let sdkOptions; let reloads = 0; let ready = false;
   const client = { auth: {
-    getSession: async () => ({ data: { session }, error: null }),
+    getSession: async () => ({ data: { session: useStoredSession
+      ? JSON.parse((sdkOptions?.auth.storage || sharedStorage).getItem(storageKey) || 'null') : session }, error: null }),
     refreshSession: async () => ({ data: { session: refreshError ? null : { ...owner, access_token: 'refreshed-token' } }, error: refreshError }),
     onAuthStateChange: fn => { subscribers.push(fn); },
     signInWithPassword: async () => ({ data: { session: owner }, error: null }),
@@ -40,7 +47,7 @@ function harness({ session = null, configured = true, state = () => response(200
   const context = {
     window: {}, document: { getElementById: get, createElement: () => new Element(), body, querySelector: get },
     location: { origin: 'https://jarvis.example.test', reload: () => { reloads++; } },
-    sessionStorage: {}, queueMicrotask, setTimeout, URL, Blob,
+    sessionStorage: tabStorage, localStorage: sharedStorage, queueMicrotask, setTimeout, URL, Blob,
     fetch: async (url, options = {}) => {
       calls.push({ url, options });
       if (url === '/api/config') return response(200, configured ? { configured: true, supabaseUrl: 'https://fixture.supabase.co', supabaseAnonKey: 'sb_publishable_fixture' } : { configured: false });
@@ -110,7 +117,7 @@ test('logout reports SDK failure without pretending success, and success reloads
 test('email recovery uses a flow without a tab-local verifier and hides private UI', async () => {
   const h = harness(); await flush();
   assert.equal(h.sdkOptions.auth.flowType, 'implicit');
-  assert.equal(h.sdkOptions.auth.storage, h.context.sessionStorage);
+  assert.equal(h.sdkOptions.auth.storage, undefined, 'SDK browser default shares localStorage across tabs.');
   h.emit('PASSWORD_RECOVERY', owner); await flush();
   assert.ok(h.classes.has('cloud-locked')); assert.equal(h.get('cloud-login').hidden, true);
   assert.equal(h.get('cloud-recovery').hidden, false);
@@ -118,6 +125,52 @@ test('email recovery uses a flow without a tab-local verifier and hides private 
   await h.get('cloud-recovery').onsubmit({ preventDefault() {}, currentTarget: h.get('cloud-recovery') });
   assert.equal(h.calls.find(call => call.passwordUpdate)?.passwordUpdate, 'new-fixture-password');
   assert.equal(h.get('auth-new-password').value, ''); assert.equal(h.reloads, 1);
+});
+
+test('SIGNED_IN broadcast with no stored session cannot unlock the original tab', async () => {
+  const h = harness(); await flush();
+  h.emit('SIGNED_IN', owner); await flush();
+  assert.equal(h.ready, false);
+  assert.ok(h.classes.has('cloud-locked'));
+  assert.equal(h.calls.filter(call => call.url === '/api/state').length, 0);
+});
+
+test('login in a second tab makes the original tab ready and API calls use its shared session', async () => {
+  const sharedStorage = storage();
+  const first = harness({ sharedStorage, useStoredSession: true });
+  const second = harness({ sharedStorage, useStoredSession: true });
+  await flush(); assert.equal(first.ready, false); assert.equal(second.ready, false);
+  // The SDK in the signing-in tab writes before publishing SIGNED_IN.
+  sharedStorage.setItem(storageKey, JSON.stringify(owner));
+  first.emit('SIGNED_IN', owner); second.emit('SIGNED_IN', owner); await flush();
+  assert.equal(first.ready, true); assert.equal(second.ready, true);
+  await first.context.window.jarvisPlatform.request('task', { text: 'Fixture' });
+  assert.equal(first.calls.find(call => call.url === '/api/task').options.headers.Authorization, 'Bearer fixture-token');
+});
+
+test('existing tab session migrates once into shared storage without overwriting a newer login', async () => {
+  const legacy = { ...owner, refresh_token: 'fixture-refresh' };
+  const tabStorage = storage({ [storageKey]: JSON.stringify(legacy), 'other-project-auth': 'untouched' });
+  const sharedStorage = storage();
+  const h = harness({ tabStorage, sharedStorage, useStoredSession: true }); await flush();
+  assert.equal(h.ready, true); assert.deepEqual(JSON.parse(sharedStorage.getItem(storageKey)), legacy);
+  assert.equal(tabStorage.getItem(storageKey), null); assert.equal(tabStorage.getItem('other-project-auth'), 'untouched');
+  const newer = { ...legacy, access_token: 'newer-fixture-token' };
+  const olderTab = storage({ [storageKey]: JSON.stringify(legacy) });
+  sharedStorage.setItem(storageKey, JSON.stringify(newer));
+  harness({ tabStorage: olderTab, sharedStorage, useStoredSession: true }); await flush();
+  assert.equal(JSON.parse(sharedStorage.getItem(storageKey)).access_token, 'newer-fixture-token');
+  assert.equal(olderTab.getItem(storageKey), null);
+});
+
+test('changing the shared account reloads with the previous private UI hidden', async () => {
+  const sharedStorage = storage({ [storageKey]: JSON.stringify(owner) });
+  const h = harness({ sharedStorage, useStoredSession: true }); await flush();
+  assert.equal(h.ready, true);
+  const another = { ...owner, user: { email: 'another@example.test' } };
+  sharedStorage.setItem(storageKey, JSON.stringify(another));
+  h.emit('SIGNED_IN', another); await flush();
+  assert.equal(h.reloads, 1); assert.ok(h.classes.has('cloud-locked'));
 });
 
 test('build exports only browser assets and excludes vault, runtime, conversation and environment secrets', async () => {

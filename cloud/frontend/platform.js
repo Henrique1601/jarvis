@@ -4,6 +4,7 @@ let client, resolveReady;
 let unlocked = false;
 let recovery = false;
 let authorizationAttempt = 0;
+let activeAccount = null;
 const ready = new Promise(resolve => { resolveReady = resolve; });
 const message = text => { byId('auth-notice').textContent = text; };
 function controls(disabled) {
@@ -14,6 +15,31 @@ function lock(messageText) {
   byId('cloud-auth').hidden = false;
   document.body.classList.add('cloud-locked');
   if (messageText) message(messageText);
+}
+function migrateTabSession(supabaseUrl) {
+  // Match the SDK project namespace, and move only this site's legacy session.
+  // An existing shared session wins: never replace a newer login from another tab.
+  const key = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`;
+  try {
+    const shared = localStorage.getItem(key);
+    const legacy = sessionStorage.getItem(key);
+    if (legacy !== null) {
+      if (shared === null) localStorage.setItem(key, legacy);
+      sessionStorage.removeItem(key);
+    }
+  } catch {
+    throw Error('Permita o armazenamento deste site no navegador para manter seu login entre abas.');
+  }
+}
+async function resumeSession() {
+  const attempt = authorizationAttempt;
+  const { data, error } = await client.auth.getSession();
+  if (attempt !== authorizationAttempt || recovery) return false;
+  if (error || !data.session) {
+    lock('Entre na sua conta para continuar.');
+    return false;
+  }
+  return unlock(data.session);
 }
 async function unlock(session) {
   if (!session || recovery) return false;
@@ -32,6 +58,13 @@ async function unlock(session) {
     if (attempt === authorizationAttempt) lock('Não foi possível confirmar o acesso. Tente entrar novamente.');
     return false;
   }
+  const account = session.user.id || session.user.email;
+  if (unlocked && activeAccount !== account) {
+    // Changing the shared login must not reveal the previous account's editor
+    // or notes while the new account loads.
+    lock(); location.reload(); return false;
+  }
+  activeAccount = account;
   byId('cloud-auth').hidden = true;
   document.body.classList.remove('cloud-locked');
   byId('cloud-user').textContent = session.user.email;
@@ -150,9 +183,11 @@ async function init() {
       message('Jarvis online em configuração. Falta conectar o Supabase e autorizar o e-mail do proprietário na Vercel. O aplicativo Windows continua disponível.');
       return;
     }
-    // Email links may open a different tab/device. Implicit email auth has no
-    // tab-local PKCE verifier; sessions remain isolated to this tab's storage.
-    client = createClient(config.supabaseUrl, config.supabaseAnonKey, { auth: { storage: sessionStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'implicit' } });
+    // Use the SDK's shared browser storage: its BroadcastChannel forwards auth
+    // events but does not copy a session into another tab's sessionStorage.
+    // Implicit email auth also avoids a verifier limited to the requesting tab.
+    migrateTabSession(config.supabaseUrl);
+    client = createClient(config.supabaseUrl, config.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'implicit' } });
     client.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         recovery = true; lock(); byId('cloud-login').hidden = true;
@@ -163,7 +198,7 @@ async function init() {
         if (unlocked) location.reload();
       } else if (session && !recovery && event !== 'TOKEN_REFRESHED') {
         // Schedule outside the SDK notification callback and its auth lock.
-        queueMicrotask(() => { void unlock(session); });
+        queueMicrotask(() => { void resumeSession().catch(() => lock('Não foi possível recuperar a sessão. Entre novamente.')); });
       }
     });
     const { data, error } = await client.auth.getSession();
