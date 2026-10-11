@@ -8,7 +8,7 @@ O componente inicia na sessão do usuário, sem privilégios administrativos. A 
 
 ## Condição de ativação
 
-Os controles administrativos estão habilitados na Vercel e no Supabase. Em 11/10/2026, o usuário conectou a conta no worker Windows. O componente processou e concluiu um pedido enviado anteriormente pelo site com o Windows offline; a resposta foi salva em transação. Pausa e retomada pela tarefa agendada preservaram o resultado sem duplicação. A leitura autenticada do painel pelo worker passou. A confirmação visual dessa resposta no Chrome aguarda novo login após um erro de acesso da sessão anterior.
+Os controles administrativos estão habilitados na Vercel e no Supabase. Em 11/10/2026, o usuário conectou a conta no worker Windows. O componente processou e concluiu um pedido enviado anteriormente pelo site com o Windows offline; a resposta foi salva em transação. Pausa e retomada pela tarefa agendada preservaram o resultado sem duplicação. A leitura autenticada do painel pelo worker passou. Após novo login pelo usuário, a resposta foi confirmada visualmente no Chrome com o estado “Windows conectado”; sessão e conversa permaneceram após recarregar o painel.
 
 Em 10/10/2026, o proprietário autorizou remover o bloqueio por ferramentas. O CLI 1.3.3 continua anunciando 60 ferramentas; agora isso é aceito pelo transporte. O nome retornado no evento inicial não prova que o perfil foi carregado. O Jarvis valida o protocolo e mantém as permissões normais do CLI, sem usar flags para ignorar aprovações.
 

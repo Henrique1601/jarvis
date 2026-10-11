@@ -6,7 +6,9 @@ A conta foi conectada pelo usuário no console; um dispositivo revogável está 
 
 A leitura autenticada de `/api/state` pelo componente confirmou disponibilidade, uma nota, uma tarefa, duas mensagens e dois pedidos (um cancelado histórico). Pausa e retomada reais preservaram essas contagens. A tarefa `JarvisWorker` foi registrada e iniciada com logon `Interactive`, execução `Limited` e janela oculta; o heartbeat após a retomada confirmou `ready`. Corrigida a descoberta do Python no instalador: selecionar apenas o primeiro executável, evitando concatenar os caminhos do Python instalado e do alias WindowsApps. Os 21 testes do componente passaram após essa correção.
 
-O próximo logon real do Windows ainda precisa ser observado; iniciar a tarefa manualmente não comprova esse evento. A confirmação visual da nova resposta no Chrome permanece pendente: a sessão anterior recebeu erro de acesso ao banco e o painel pediu novo login. A leitura autenticada pelo worker e a chamada dos RPCs com a identidade da conta foram aprovadas. O contexto preparado para o worker contém apenas dados online; ferramentas nativas continuam sujeitas às permissões do CLI, sem garantia de sandbox de arquivos.
+Após novo login realizado pelo usuário, a resposta com os exercícios JavaScript foi confirmada visualmente no Chrome, junto do estado “Windows conectado”. Ao recarregar, a sessão, a resposta, a nota e a tarefa permaneceram disponíveis. Um aviso transitório de atualização da fila deixou de aparecer após a recarga; a causa desse aviso e do erro da sessão anterior não foi determinada. A leitura autenticada pelo worker e a chamada dos RPCs com a identidade da conta também foram aprovadas.
+
+O próximo logon real do Windows ainda precisa ser observado; iniciar a tarefa manualmente não comprova esse evento. O contexto preparado para o worker contém apenas dados online; ferramentas nativas continuam sujeitas às permissões do CLI, sem garantia de sandbox de arquivos.
 
 Atualização: 10 de outubro de 2026. Plataforma: Windows 11.
 
