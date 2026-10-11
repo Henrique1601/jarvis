@@ -4,11 +4,11 @@
 
 O site permanece na Vercel. Login, notas, tarefas, histórico e pedidos ficam no Supabase. Um componente Python no Windows consulta a fila por HTTPS de saída e utiliza o Antigravity autenticado na conta Google do usuário. Não há túnel, porta pública no computador ou sincronização do cofre local.
 
-O componente inicia na sessão do usuário, sem privilégios administrativos. A inicialização automática é opcional e reversível. A primeira configuração exige login Supabase e, separadamente, login Google pelo fluxo oficial do Antigravity. Senhas e códigos de autenticação nunca devem ser enviados no chat.
+O componente inicia na sessão do usuário, sem privilégios administrativos. A tarefa de inicialização ao logon foi registrada e iniciada; o próximo logon real ainda precisa ser observado. A inicialização automática é reversível. A primeira configuração exige login Supabase e, separadamente, login Google pelo fluxo oficial do Antigravity. Senhas e códigos de autenticação nunca devem ser enviados no chat.
 
 ## Condição de ativação
 
-Os controles administrativos foram habilitados na Vercel e no Supabase. Uma resposta direta autenticada do CLI foi validada com pedido sintético; nenhum contexto de notas ou tarefas participou. A configuração da conta no worker Windows ainda está pendente, portanto a jornada completa site → fila → Windows → resposta não foi validada nesta etapa.
+Os controles administrativos estão habilitados na Vercel e no Supabase. Em 11/10/2026, o usuário conectou a conta no worker Windows. O componente processou e concluiu um pedido enviado anteriormente pelo site com o Windows offline; a resposta foi salva em transação. Pausa e retomada pela tarefa agendada preservaram o resultado sem duplicação. A leitura autenticada do painel pelo worker passou. A confirmação visual dessa resposta no Chrome aguarda novo login após um erro de acesso da sessão anterior.
 
 Em 10/10/2026, o proprietário autorizou remover o bloqueio por ferramentas. O CLI 1.3.3 continua anunciando 60 ferramentas; agora isso é aceito pelo transporte. O nome retornado no evento inicial não prova que o perfil foi carregado. O Jarvis valida o protocolo e mantém as permissões normais do CLI, sem usar flags para ignorar aprovações.
 

@@ -14,7 +14,7 @@ if ($Action -eq 'Disable') {
 }
 # Discover once, then pin absolute executables in the task. No cmd/PATH or secrets
 # are placed in the Task XML; no administrator or password is requested.
-$jarvisPythonCommand = Get-Command python.exe -CommandType Application -ErrorAction Stop
+$jarvisPythonCommand = Get-Command python.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1
 $jarvisPython = (& $jarvisPythonCommand.Source -c 'import sys; print(sys.executable)').Trim()
 if ($LASTEXITCODE -ne 0 -or -not [IO.Path]::IsPathRooted($jarvisPython) -or -not (Test-Path -LiteralPath $jarvisPython -PathType Leaf)) { throw 'Python instalado nao confirmado.' }
 $jarvisPythonW = Join-Path (Split-Path -Parent $jarvisPython) 'pythonw.exe'

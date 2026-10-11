@@ -1,5 +1,13 @@
 # Verificação do Jarvis
 
+## Fila autenticada e retomada do componente — 11 de outubro de 2026
+
+A conta foi conectada pelo usuário no console; um dispositivo revogável está registrado e a sessão permanece protegida com DPAPI. O startup-check real confirmou o protocolo do CLI e o gate online, sem buscar pedidos. O worker iniciou em segundo plano e concluiu o pedido de exercícios JavaScript que já estava aguardando com Windows offline: início e conclusão gravados, duas mensagens persistidas e um pedido concluído, sem duplicação.
+
+A leitura autenticada de `/api/state` pelo componente confirmou disponibilidade, uma nota, uma tarefa, duas mensagens e dois pedidos (um cancelado histórico). Pausa e retomada reais preservaram essas contagens. A tarefa `JarvisWorker` foi registrada e iniciada com logon `Interactive`, execução `Limited` e janela oculta; o heartbeat após a retomada confirmou `ready`. Corrigida a descoberta do Python no instalador: selecionar apenas o primeiro executável, evitando concatenar os caminhos do Python instalado e do alias WindowsApps. Os 21 testes do componente passaram após essa correção.
+
+O próximo logon real do Windows ainda precisa ser observado; iniciar a tarefa manualmente não comprova esse evento. A confirmação visual da nova resposta no Chrome permanece pendente: a sessão anterior recebeu erro de acesso ao banco e o painel pediu novo login. A leitura autenticada pelo worker e a chamada dos RPCs com a identidade da conta foram aprovadas. O contexto preparado para o worker contém apenas dados online; ferramentas nativas continuam sujeitas às permissões do CLI, sem garantia de sandbox de arquivos.
+
 Atualização: 10 de outubro de 2026. Plataforma: Windows 11.
 
 ## Diagnóstico da conexão do worker — 11 de outubro de 2026
