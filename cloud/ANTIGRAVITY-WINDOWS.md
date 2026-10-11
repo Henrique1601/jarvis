@@ -8,11 +8,13 @@ O componente inicia na sessão do usuário, sem privilégios administrativos. A 
 
 ## Condição de ativação
 
-O teste real do CLI oficial 1.3.3 continuou anunciando ferramentas apesar do perfil sem ferramentas. O runtime interrompeu a sessão antes de enviar o prompt. Portanto, **a execução permanece bloqueada**. A fila pode guardar pedidos, mas não haverá resposta enquanto essa restrição não for demonstrada.
+Os controles administrativos foram habilitados na Vercel e no Supabase. Uma resposta direta autenticada do CLI foi validada com pedido sintético; nenhum contexto de notas ou tarefas participou. A configuração da conta no worker Windows ainda está pendente, portanto a jornada completa site → fila → Windows → resposta não foi validada nesta etapa.
 
-São necessários dois controles administrativos: `JARVIS_ANTIGRAVITY_ENABLED=true` na Vercel e a autorização de execução no banco. Ambos devem permanecer desativados nesta entrega. O registro de um dispositivo ou seu heartbeat não habilita esses controles. A verificação do agente e da ausência de ferramentas também ocorre antes de cada envio ao CLI.
+Em 10/10/2026, o proprietário autorizou remover o bloqueio por ferramentas. O CLI 1.3.3 continua anunciando 60 ferramentas; agora isso é aceito pelo transporte. O nome retornado no evento inicial não prova que o perfil foi carregado. O Jarvis valida o protocolo e mantém as permissões normais do CLI, sem usar flags para ignorar aprovações.
 
-Uma configuração `tools: []`, modo de planejamento ou hook isolado não substitui a verificação real. Se o CLI anunciar ferramentas, pedir login, exceder o prazo ou retornar um protocolo inválido, nenhum contexto será enviado antes da autorização do runtime. Não há fallback automático para Gemini API.
+São necessários dois controles administrativos: `JARVIS_ANTIGRAVITY_ENABLED=true` na Vercel e a autorização de execução no banco. Além disso, o Windows precisa conectar a conta Supabase e o login Google do CLI. O registro do dispositivo e seu heartbeat não habilitam os controles administrativos por conta própria.
+
+O contexto online é preparado sem ler o cofre local. Isso não constitui sandbox de arquivos: ferramentas nativas podem acessar recursos permitidos ao processo Windows. As instruções do perfil não garantem confinamento. Login ausente, protocolo inválido, limites, prazo e cancelamento continuam tratados. Não há fallback automático para Gemini API.
 
 ## Pedidos e recuperação
 
@@ -39,7 +41,7 @@ O CLI pode manter seus próprios registros e transcrições conforme a configura
 
 Aplicar primeiro a migração aditiva da fila, mantendo a execução desativada; depois publicar API e frontend. Preservar registros existentes, dados locais e credenciais. Antes de ativar execução, validar isolamento entre contas, concorrência, cancelamento, expiração, recuperação e uma resposta real com o gate aprovado.
 
-Para interromper processamento, desativar os controles de execução e pausar ou desconectar o componente. Não apagar pedidos, notas, tarefas ou histórico. Os critérios de conversa autenticada e retomada real após reinício permanecem pendentes enquanto o CLI estiver bloqueado.
+Para interromper processamento, desativar os controles de execução e pausar ou desconectar o componente. Não apagar pedidos, notas, tarefas ou histórico. Uma resposta direta do CLI não valida sozinha a fila autenticada nem a retomada real após reinício.
 
 ## Evidências desta entrega
 

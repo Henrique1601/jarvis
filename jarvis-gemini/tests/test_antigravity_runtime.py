@@ -42,8 +42,10 @@ if mode == 'missing_tools':
     del details['tools']
 if mode == 'wrong_tools_type':
     details['tools'] = ''
+if mode == 'wrong_tool_entry':
+    details['tools'] = [{}]
 emit({'event': 'init', 'init': details})
-if mode in ('unsafe_tools', 'wrong_agent', 'missing_tools', 'wrong_tools_type'):
+if mode in ('wrong_agent', 'missing_tools', 'wrong_tools_type', 'wrong_tool_entry'):
     data = sys.stdin.read()
     pathlib.Path(receipt).write_text(data, encoding='utf-8')
     raise SystemExit(0)
@@ -145,19 +147,24 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(result, {'agent': 'jarvis-chat', 'tools': [], 'verified': True})
         self.assertFalse(self.receipt.exists())
 
-    def test_tool_steps_contradict_empty_init_and_discard_even_a_successful_result(self):
+    def test_authorized_tool_steps_are_accepted_without_publishing_tool_details(self):
         for mode in ('tool_event', 'tool_name_only', 'tool_info_only', 'subagent_info_only',
                      'trailing_tool_event', 'trailing_tool_info', 'trailing_subagent_info'):
             with self.subTest(mode=mode):
                 self.receipt.unlink(missing_ok=True)
-                with self.assertRaises(runtime.PolicyBlockedError) as error:
-                    self.call(mode, 'SYNTHETIC-PROMPT-ALREADY-SENT')
-                self.assertIn('ferramenta', str(error.exception))
-                self.assertNotIn('private-tool-detail', str(error.exception))
-                self.assertNotIn('antes de enviar', str(error.exception))
-                # This is post-send protocol detection, not proof that the CLI
-                # was prevented from executing a tool or receiving a prompt.
+                response, _ = self.call(mode, 'SYNTHETIC-PROMPT-ALREADY-SENT')
+                self.assertEqual(response, 'Olá Henrique')
+                self.assertNotIn('private-tool-detail', response)
                 self.assertIn('SYNTHETIC-PROMPT-ALREADY-SENT', self.receipt.read_text(encoding='utf-8'))
+
+    def test_nonempty_tool_inventory_is_preserved_by_probe_and_allows_chat(self):
+        proof, _ = self.call('unsafe_tools', None, _probe=True)
+        self.assertEqual(proof, {'agent': 'jarvis-chat', 'tools': ['run_command'], 'verified': True})
+        self.assertFalse(self.receipt.exists())
+        self.assertTrue(runtime.valid_init(proof))
+        response, _ = self.call('unsafe_tools')
+        self.assertEqual(response, 'Olá Henrique')
+        self.assertIn('Meu pedido', self.receipt.read_text(encoding='utf-8'))
 
     def test_malformed_or_unknown_steps_fail_closed_without_echoing_payload(self):
         for mode in ('invalid_step_array', 'invalid_step_null', 'missing_step_type', 'unknown_step_type', 'trailing_invalid_step'):
@@ -216,14 +223,11 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(json.loads(lines[0]), {'event': 'user', 'message': {'content': prompt}})
 
     def test_unverified_init_never_receives_prompt(self):
-        for mode in ('unsafe_tools', 'wrong_agent', 'missing_tools', 'wrong_tools_type', 'no_init', 'invalid_init'):
+        for mode in ('wrong_agent', 'missing_tools', 'wrong_tools_type', 'wrong_tool_entry', 'no_init', 'invalid_init'):
             with self.subTest(mode=mode):
                 self.receipt.unlink(missing_ok=True)
                 with self.assertRaises(RuntimeError) as error:
                     self.call(mode, 'DADOS-QUE-NAO-PODEM-SER-ENVIADOS')
-                if mode == 'unsafe_tools':
-                    self.assertIn('anunciou ferramentas', str(error.exception))
-                    self.assertIn('bloqueada antes de enviar seu pedido', str(error.exception))
                 self.assertNotIn('internal-secret', str(error.exception))
                 if self.receipt.exists():
                     self.assertNotIn('DADOS-QUE-NAO-PODEM-SER-ENVIADOS', self.receipt.read_text(encoding='utf-8'))
@@ -238,8 +242,7 @@ class RuntimeTests(unittest.TestCase):
     def test_windows_cleanup_also_terminates_child_process(self):
         import ctypes
         from ctypes import wintypes
-        with self.assertRaisesRegex(RuntimeError, 'bloqueada antes de enviar seu pedido'):
-            self.call('unsafe_child')
+        self.call('unsafe_child', None, _probe=True)
         child_pid = int(self.receipt.read_text(encoding='utf-8'))
         kernel = ctypes.WinDLL('kernel32', use_last_error=True)
         kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
@@ -275,11 +278,13 @@ class RuntimeTests(unittest.TestCase):
             self.call('overflow')
         self.assertNotIn('internal-secret', str(error.exception))
 
-    def test_profile_is_local_and_disallows_tools_and_execution(self):
+    def test_profile_is_local_and_preserves_cli_approvals(self):
         profile = runtime.prepare_workspace(self.workspace)
         self.assertEqual(profile, self.workspace.resolve() / '.agents/agents/jarvis-chat/agent.md')
         content = profile.read_text(encoding='utf-8')
-        for field in ('tools: []', 'mainAgent: true', 'subagent: false', 'commandExecutionPolicy: "off"', 'mcpServers: []', 'skills: []', 'plugins: []'):
+        self.assertNotIn('tools: []', content)
+        self.assertNotIn('Você não possui ferramentas', content)
+        for field in ('mainAgent: true', 'subagent: false', 'commandExecutionPolicy: "off"', 'mcpServers: []', 'skills: []', 'plugins: []'):
             self.assertIn(field, content)
         self.assertFalse((self.root / '.gemini').exists())
 

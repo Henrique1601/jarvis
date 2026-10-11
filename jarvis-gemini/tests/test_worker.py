@@ -60,7 +60,7 @@ class FakeEngine:
         self.probes += 1
         if self.blocked:
             raise runtime.PolicyBlockedError('tools not empty')
-        return {'verified': True, 'agent': runtime.AGENT_NAME, 'tools': []}
+        return {'verified': True, 'agent': runtime.AGENT_NAME, 'tools': ['run_command']}
 
     def ask(self, root, workspace, prompt, *, timeout, before_send, cancel_event):
         if self.blocked:
@@ -121,6 +121,21 @@ class WorkerTests(unittest.TestCase):
         self.assertFalse(any(name == 'worker-claim' for name, _ in self.client.calls))
         self.assertEqual(self.client.calls[-1][1]['status'], 'blocked')
         self.assertEqual(self.client.calls[-1][1]['reason'], 'policy_unverified')
+
+    def test_run_accepts_tool_inventory_before_claim_and_rejects_invalid_init(self):
+        def claimed(_):
+            self.service.stop.set()
+            return {'job': None}
+        self.client.callbacks['worker-claim'] = claimed
+        self.service.run()
+        self.assertEqual(self.engine.probes, 1)
+        self.assertTrue(any(name == 'worker-claim' for name, _ in self.client.calls))
+        self.client.calls.clear()
+        self.service.stop.clear()
+        self.engine.probe = lambda *args, **kwargs: {'verified': True, 'agent': runtime.AGENT_NAME, 'tools': [{}]}
+        with self.assertRaises(worker.WorkerError):
+            self.service.run()
+        self.assertFalse(any(name == 'worker-claim' for name, _ in self.client.calls))
 
     def test_start_precedes_prompt_and_completion_clears_outbox(self):
         self.service.execute(self.job)
@@ -262,7 +277,7 @@ class WorkerTests(unittest.TestCase):
                 worker.request_json(worker.ORIGIN + '/api/worker-start', {})
             self.assertNotIn('private secret', str(error.exception))
 
-    def test_startup_requires_empty_tools_and_online_gate_before_any_task(self):
+    def test_startup_accepts_cli_tools_and_requires_online_gate_before_any_task(self):
         self.engine.blocked = True
         with self.assertRaises(runtime.PolicyBlockedError):
             worker.startup_check(self.root, self.vault, self.client, self.engine)

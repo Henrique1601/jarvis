@@ -495,7 +495,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self.respond({'error': 'A IA está ocupada. Aguarde.'}, 409)
                 try:
                     ask_ai(store, 'Responda apenas OK. Este é um teste de conexão.', prepared_prompt='Responda apenas OK. Este é um teste de conexão sem acesso a notas ou ferramentas.')
-                    return self.respond({'ok': True, 'login': 'Antigravity respondeu com esta conta; o perfil foi verificado sem ferramentas.'})
+                    return self.respond({'ok': True, 'login': 'Antigravity respondeu com esta conta. Ferramentas seguem as permissões do CLI.'})
                 finally:
                     AI_LOCK.release()
             if self.path == '/api/docs-import':

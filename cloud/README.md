@@ -1,5 +1,7 @@
 # Jarvis web 0.6.0 — Supabase e fila Antigravity no Windows
 
+**Atualização de 10/10/2026:** o proprietário autorizou remover o bloqueio por ferramentas. O código fonte aceita o inventário e eventos do CLI, preservando protocolo, login, fila e cancelamento. Uma resposta direta autenticada do Antigravity 1.3.3 passou; a jornada pela fila e reinício ainda dependem da conexão do componente Windows. As evidências de bloqueio abaixo são históricas.
+
 O painel online autentica a conta e guarda memória, tarefas, conversa e pedidos no Supabase. A versão 0.6 implementa uma fila: o navegador pode enviar pedidos mesmo com o computador desligado; um worker Windows consulta a fila por HTTPS e utiliza o Antigravity com o login Google oficial. Vercel não executa o CLI nem acessa o disco do computador.
 
 **Situação atual:** fila 0.6 [publicada](https://jarvis-ten-pi-14.vercel.app/), migração aplicada e envio, persistência após recarga e cancelamento verificados na conta autenticada. **Processamento Antigravity bloqueado:** o CLI real 1.3.3 anunciou 60 ferramentas apesar do perfil `tools: []`. Nenhum pedido ou contexto foi enviado nesse teste. Pedidos podem aguardar liberação, mas expiram após sete dias; não há respostas fictícias nem fallback automático para Gemini API.

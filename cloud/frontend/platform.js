@@ -190,7 +190,7 @@ const reasonLabels = {
 };
 Object.assign(reasonLabels, {
   login_required: reasonLabels.auth_required,
-  policy_unverified: 'Antigravity bloqueado: restrição de ferramentas não comprovada. Pedidos aguardam liberação e expiram em 7 dias.',
+  policy_unverified: 'Processamento Antigravity desativado ou inicialização não confirmada. Pedidos aguardam liberação e expiram em 7 dias.',
   cli_missing: 'Instale o Antigravity CLI no Windows antes de iniciar o worker.',
   offline: reasonLabels.connection_error, busy: 'Windows processando um pedido.',
   runtime_error: reasonLabels.execution_failed, revoked: reasonLabels.device_revoked,

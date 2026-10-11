@@ -1,5 +1,11 @@
 # Diagnóstico do Antigravity — 10 de outubro de 2026
 
+## Mudança autorizada posterior
+
+O proprietário autorizou remover a proteção por ferramentas após receber a explicação do motivo. A exigência de lista vazia e a rejeição de eventos de ferramenta foram removidas. O protocolo, limites, login, START antes do envio, cancelamento e encerramento de processos permanecem. O probe real 1.3.3 passou com 60 ferramentas, sem pedido enviado. A preparação do contexto não lê o cofre local; não há garantia de impedir uma ferramenta nativa de acessar arquivos do usuário. As permissões normais do CLI permanecem, sem bypass de aprovações. Os registros abaixo descrevem a política anterior.
+
+## Registro anterior
+
 A integração continua desativada. A CLI Windows 1.3.3 anunciou 60 ferramentas durante a inicialização, apesar do perfil de conversa com `tools: []`. Os probes encerraram o processo sem transmitir pedido ou dados pessoais. Login Google não resolve, por si só, essa divergência.
 
 ## O que foi investigado

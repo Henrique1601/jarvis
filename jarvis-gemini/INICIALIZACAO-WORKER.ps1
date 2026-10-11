@@ -21,7 +21,7 @@ $jarvisPythonW = Join-Path (Split-Path -Parent $jarvisPython) 'pythonw.exe'
 if (-not (Test-Path -LiteralPath $jarvisPythonW -PathType Leaf)) { throw 'pythonw.exe nao encontrado; tarefa nao criada.' }
 $jarvisWorker = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot 'worker.py')).Path
 if ((Get-Item -LiteralPath $jarvisWorker).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'worker.py precisa ser um arquivo local.' }
-# Both the strict init gate and administrative online gate must pass first.
+# Both protocol initialization and the administrative online gate must pass.
 & $jarvisPython $jarvisWorker startup-check
 if ($LASTEXITCODE -ne 0) { throw 'Verificacao de seguranca recusada. Nenhuma tarefa foi registrada.' }
 $jarvisArguments = '"' + $jarvisWorker + '" run'
@@ -31,5 +31,5 @@ $jarvisTaskAction = New-ScheduledTaskAction -Execute $jarvisPythonW -Argument $j
 $jarvisTrigger = New-ScheduledTaskTrigger -AtLogOn -User $jarvisUser
 $jarvisPrincipal = New-ScheduledTaskPrincipal -UserId $jarvisUser -LogonType Interactive -RunLevel Limited
 $jarvisSettings = New-ScheduledTaskSettingsSet -Hidden -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero)
-Register-ScheduledTask -TaskName $jarvisTaskName -Action $jarvisTaskAction -Trigger $jarvisTrigger -Principal $jarvisPrincipal -Settings $jarvisSettings -Description 'Jarvis worker pessoal, HTTPS de saida, gate sem ferramentas obrigatorio.' -Force | Out-Null
+Register-ScheduledTask -TaskName $jarvisTaskName -Action $jarvisTaskAction -Trigger $jarvisTrigger -Principal $jarvisPrincipal -Settings $jarvisSettings -Description 'Jarvis worker pessoal, HTTPS de saida, validacao de protocolo obrigatoria.' -Force | Out-Null
 Write-Host 'Inicializacao registrada somente para o proximo logon deste usuario. Nenhum worker foi iniciado agora.'

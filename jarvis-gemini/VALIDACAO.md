@@ -2,6 +2,12 @@
 
 Atualização: 10 de outubro de 2026. Plataforma: Windows 11.
 
+## Política atual — ferramentas do CLI autorizadas pelo proprietário
+
+Resposta direta autenticada real aprovada: pedido sintético solicitando somente “Conexão Antigravity OK.”, em workspace temporário, sem inclusão de notas ou tarefas. O teste concluiu com essa resposta. A fila autenticada e a retomada após reinício ainda não foram validadas; nenhuma credencial Supabase do worker foi configurada nesta etapa.
+
+Removidos o bloqueio por inventário não vazio e a rejeição de eventos de ferramenta. O probe real 1.3.3 passou com 60 ferramentas, sem enviar pedido. Passaram 70 testes Windows, incluindo aceitação do inventário e eventos, recusa de protocolo inválido, START antes do envio, isolamento de variáveis de credenciais, cancelamento e encerramento de processos. Essa validação não demonstra confinamento de ferramentas nativas nem descoberta efetiva do perfil. Os registros abaixo são históricos da política anterior.
+
 ## Worker Windows — preparado, execução bloqueada pela CLI real
 
 | Verificação | Resultado |

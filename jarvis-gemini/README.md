@@ -1,15 +1,15 @@
 # Jarvis 0.4.0 — prévia Antigravity no Windows
 
-Assistente de Henrique com painel local, memória Markdown/Obsidian, tarefas e voz opcional. Esta prévia prepara a integração ao Antigravity CLI, mas mantém a conversa bloqueada porque o CLI real não confirmou o conjunto de ferramentas permitido. A primeira versão foi recuperada do histórico e continuada neste workspace.
+Assistente de Henrique com painel local, memória Markdown/Obsidian, tarefas e voz opcional. O código fonte atual aceita ferramentas do Antigravity por autorização do proprietário em 10/10/2026. Uma resposta direta autenticada foi validada com o CLI 1.3.3; o componente online ainda exige conexão da conta Supabase. Os registros da prévia 0.4 abaixo são históricos, e seus executáveis não incorporam essa alteração.
 
 ## Começar
 
-1. Execute **CONFIGURAR-ANTIGRAVITY.bat** para preparar o CLI local. O fluxo oferece novo login pelo navegador; digite credenciais apenas na interface Google. Esse login não habilita a conversa bloqueada nesta prévia. O Antigravity CLI 1.3.2 fica em `.tools/antigravity/agy.exe`, sem exigir Node.js. **CONFIGURAR-GEMINI.bat** encaminha para o novo script.
+1. Execute **CONFIGURAR-ANTIGRAVITY.bat** para preparar o CLI local. O fluxo oferece login pelo navegador; digite credenciais apenas na interface Google. O Antigravity CLI fica em `.tools/antigravity/agy.exe`, sem exigir Node.js. **CONFIGURAR-GEMINI.bat** encaminha para o novo script.
 2. Execute **INICIAR.bat**. O painel abre em http://127.0.0.1:8765. Requer Python 3.11+. O serviço foi testado com Python 3.14 no Windows.
 3. Abra **Verificar instalação** e use o teste de conexão Antigravity. Esse botão solicita uma resposta real e pode consumir sua cota. Encontrar o CLI não confirma o login nem a lista real de ferramentas permitidas.
 4. Abra `data/vault` como cofre no Obsidian e comece por `wiki/cerebro-jarvis.md`.
 
-Quando habilitada, a integração enviará pedido, trechos de notas, tarefas e mensagens recentes ao Antigravity. Nesta prévia, o gate bloqueia antes desse envio. As notas ficam no PC. Nenhuma chave de API é usada; autenticação e cotas Antigravity são uma verificação separada do bloqueio das ferramentas.
+A integração local envia pedido, trechos de notas, tarefas e mensagens recentes ao Antigravity. O worker online usa somente o contexto online preparado no servidor. Nenhuma chave de API é usada; autenticação e cotas continuam necessárias. Ferramentas seguem as permissões normais do CLI; o workspace separado não é sandbox de arquivos. Para conectar a fila, use **CONFIGURAR-WORKER.bat**.
 
 ## Prévia 0.4.0 — migração não concluída
 

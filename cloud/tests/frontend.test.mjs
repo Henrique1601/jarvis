@@ -158,7 +158,7 @@ test('blocked Antigravity clearly waits for permission but still accepts queued 
   const blocked = { ...queueState(), worker: { status: 'blocked', reason: 'policy_unverified' } };
   const h = harness({ session: owner, state: () => response(200, blocked), api: url => response(url === '/api/chat' ? 202 : 201, { jobId: jobFixture.id, status: 'queued' }) });
   await flush(); h.mountApp(); await flush();
-  assert.match(h.get('ai-status').textContent, /Antigravity bloqueado.*não comprovada.*7 dias/);
+  assert.match(h.get('ai-status').textContent, /Antigravity desativado.*não confirmada.*7 dias/);
   assert.doesNotMatch(h.get('ai-status').textContent, /offline/);
   h.get('prompt').value = 'Pedido aguardando liberação'; await h.get('chat-form').onsubmit({ preventDefault() {} });
   await h.context.window.jarvisPlatform.request('note', { title: 'Memória', content: 'Continua disponível' });
@@ -211,7 +211,7 @@ test('queue labels never echo unknown worker or CLI details and render requests 
   assert.doesNotMatch(treeText(h.get('messages')), /PRIVATE_CLI_DETAIL|PRIVATE_WORKER_DETAIL/);
   assert.match(treeText(h.get('messages')), /<script>fixture<\/script>/);
   assert.equal(h.get('messages').children[0].children.find(child => child.className === 'cloud-job').children[0].children.length, 0);
-  for (const [reason, pattern] of [['login_required', /Google/], ['quota_exceeded', /Limite/], ['policy_unverified', /restrição de ferramentas/], ['connection_error', /Sem conexão/]])
+  for (const [reason, pattern] of [['login_required', /Google/], ['quota_exceeded', /Limite/], ['policy_unverified', /inicialização/], ['connection_error', /Sem conexão/]])
     assert.match(h.context.window.jarvisPlatform.workerLabel({ status: 'paused', reason }), pattern);
 });
 
@@ -238,7 +238,7 @@ test('cloud diagnostics checks a blocked Windows worker without Gemini API confi
     version: 'fixture', cli: 'Worker no Windows', login: 'Conta Jarvis autorizada', issues: [] }) });
   await flush(); h.mountApp(); h.mountWorkspace(); await flush();
   const tools = h.get('.right').children[0]; await tools.children[1].onclick();
-  assert.match(treeText(h.get('diagnostic-content')), /Antigravity no Windows.*restrição de ferramentas/);
+  assert.match(treeText(h.get('diagnostic-content')), /Antigravity no Windows.*inicialização não confirmada/);
   assert.doesNotMatch(treeText(h.get('diagnostic-content')), /Gemini API|GEMINI_API_KEY/);
   assert.equal(h.get('test-ai').disabled, false); assert.equal(h.get('test-ai').textContent, 'Verificar worker ↗');
 });

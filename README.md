@@ -4,14 +4,14 @@ Assistente pessoal para conversar sobre estudos e projetos, guardar notas e orga
 
 Repositório público: [Henrique1601/jarvis](https://github.com/Henrique1601/jarvis), com as aplicações Windows e web na branch `main`.
 
-Aplicação publicada: [abrir Jarvis online](https://jarvis-ten-pi-14.vercel.app/). Crie sua conta com o e-mail autorizado e confirme o e-mail antes de entrar. Memória e tarefas não dependem da IA. A troca para Antigravity usa uma fila, mas a execução permanece bloqueada enquanto o CLI não demonstrar ausência de ferramentas.
+Aplicação publicada: [abrir Jarvis online](https://jarvis-ten-pi-14.vercel.app/). Crie sua conta com o e-mail autorizado e confirme o e-mail antes de entrar. Memória e tarefas não dependem da IA. Em 10/10/2026, o proprietário autorizou ferramentas do Antigravity e uma resposta direta autenticada foi validada. O site usa uma fila; o componente Windows precisa conectar a conta para processá-la.
 
 ## Duas aplicações, dados separados
 
 | Aplicação | Como funciona | Situação |
 | --- | --- | --- |
-| Web em `cloud/` | Frontend e API na Vercel; autenticação, dados e fila Supabase; respostas por componente Windows | Fila publicada e envio/recarga/cancelamento verificados; execução Antigravity bloqueada |
-| Windows em `jarvis-gemini/` | Python, painel local, arquivos Markdown, tarefas, histórico e backup | Prévia 0.4.0; recursos locais disponíveis, conversa Antigravity bloqueada |
+| Web em `cloud/` | Frontend e API na Vercel; autenticação, dados e fila Supabase; respostas por componente Windows | Fila publicada; conexão do dispositivo Windows necessária |
+| Windows em `jarvis-gemini/` | Python, painel local, arquivos Markdown, tarefas, histórico e backup | Código fonte atualizado; resposta direta Antigravity autenticada validada |
 
 A versão web usa banco remoto. A versão Windows conserva o cofre e o estado no computador. **Sincronização entre as duas versões ainda não foi implementada.** Publicar o repositório ou o site não envia automaticamente o cofre do PC para a nuvem.
 
@@ -27,7 +27,7 @@ A IA proposta utiliza o login Google oficial do Antigravity e os limites do plan
 
 Abra [o guia Windows](jarvis-gemini/README.md). `INICIAR.bat` abre o painel em `http://127.0.0.1:8765`; o cofre, tarefas, edição com conflito, histórico, restauração e backup permanecem locais.
 
-A instalação atual prepara Antigravity CLI 1.3.3, mas **a conversa está bloqueada antes de enviar pedido e notas**: o CLI real anunciou 60 ferramentas apesar do perfil `tools: []`. Fazer login sozinho não resolve esse bloqueio. O worker online usa workspace separado por execução e não lê o cofre local.
+A instalação atual prepara Antigravity CLI 1.3.3. A política autorizada aceita suas ferramentas e mantém as permissões normais do CLI. O worker online usa workspace separado por execução e prepara contexto sem ler o cofre local; isso não impede acesso de ferramentas nativas a arquivos. Consulte [a mudança e o diagnóstico](jarvis-gemini/DIAGNOSTICO-ANTIGRAVITY.md). Executáveis e ZIPs antigos mantêm a política anterior até serem reconstruídos.
 
 Whisper/transcrição e SAPI/leitura reais ainda dependem de validação no Windows. A web não herda automaticamente o áudio, o executável ou os arquivos do PC.
 

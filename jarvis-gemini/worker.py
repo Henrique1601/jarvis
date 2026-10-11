@@ -264,8 +264,8 @@ def startup_check(root, vault, client, engine=runtime):
         raise WorkerError('policy_blocked', 'Resolva a conclusão pendente e a pausa antes de instalar a inicialização.')
     with tempfile.TemporaryDirectory(prefix='startup-probe-', dir=runs_directory(vault)) as workspace:
         proof = engine.probe(root, workspace, timeout=25)
-        if proof.get('agent') != runtime.AGENT_NAME or proof.get('tools') != [] or proof.get('verified') is not True:
-            raise WorkerError('policy_blocked', 'O agente não confirmou ferramentas vazias. Inicialização bloqueada.')
+        if not runtime.valid_init(proof):
+            raise WorkerError('policy_blocked', 'O CLI não confirmou a inicialização. Inicialização automática bloqueada.')
     client.api('worker-heartbeat', {'status': 'ready', 'reason': 'none'})
     online = client.requester(ORIGIN + '/api/ai-check', {}, {'Authorization': 'Bearer ' + client.token()})
     if online.get('provider') != 'antigravity_windows' or online.get('ok') is not True or online.get('worker', {}).get('status') != 'ready':
@@ -303,7 +303,7 @@ def setup(vault, requester=request_json):
     credentials.update(deviceId=device['deviceId'], deviceToken=device['deviceToken'])
     vault.write('credentials', credentials)
     print('Conta e dispositivo protegidos pelo Windows. Nenhum login Google foi copiado.')
-    print('O worker só iniciará pedidos após verificar o agente sem ferramentas e o gate online.')
+    print('O worker só iniciará pedidos após verificar o protocolo do CLI e o gate online. Ferramentas seguem as permissões do Antigravity.')
 
 
 class Worker:
@@ -456,12 +456,12 @@ class Worker:
         with tempfile.TemporaryDirectory(prefix='probe-', dir=runs_directory(self.vault)) as workspace:
             try:
                 proof = self.engine.probe(self.app_root, workspace, timeout=25)
-                if proof.get('verified') is not True or proof.get('tools') != [] or proof.get('agent') != runtime.AGENT_NAME:
-                    raise runtime.PolicyBlockedError('O CLI não confirmou o contrato sem ferramentas.')
+                if not runtime.valid_init(proof):
+                    raise runtime.PolicyBlockedError('O CLI não confirmou a inicialização.')
             except runtime.PolicyBlockedError:
                 self.status, self.reason = 'blocked', 'policy_unverified'
                 self.heartbeat()
-                raise WorkerError('policy_blocked', 'O CLI anunciou ferramentas. Worker bloqueado antes de buscar pedidos.') from None
+                raise WorkerError('policy_blocked', 'O CLI não confirmou a inicialização. Worker bloqueado antes de buscar pedidos.') from None
             except RuntimeError as error:
                 self.status = 'error'
                 self.reason = 'login_required' if 'conta Google' in str(error) else 'cli_missing' if 'não encontrado' in str(error) else 'runtime_error'
@@ -521,7 +521,7 @@ def main():
                     print(runtime.probe(root, workspace, timeout=25))
             elif args.action == 'startup-check':
                 startup_check(root, vault, Client(vault))
-                print('Contrato sem ferramentas e gate online confirmados. Nenhum pedido foi buscado ou enviado.')
+                print('Protocolo do CLI e gate online confirmados. Nenhum pedido foi buscado ou enviado.')
             elif args.action in ('pause', 'resume'):
                 vault.write('preferences', {'paused': args.action == 'pause'})
                 print('Preferência salva. Use INICIAR-WORKER para retomar após a verificação de segurança.')
