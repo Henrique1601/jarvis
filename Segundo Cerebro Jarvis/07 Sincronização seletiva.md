@@ -26,7 +26,7 @@ Use os comandos reais documentados na ajuda do script; veja também o guia SYNC-
 
 Resolva um conflito explicitamente depois de comparar os conteúdos. Desselecionar desativa o vínculo, sem apagar a nota online ou o arquivo local. Copiar arquivos manualmente para esta pasta não autoriza envio automático.
 
-Esta implementação precisa distinguir testes sintéticos de sincronização real da sua conta. Confira [[11 Estado da entrega]] antes de usar em notas importantes.
+O fluxo autenticado passou com uma nota sintética escolhida e pasta temporária, incluindo conflito e resolução. O uso habitual no seu Obsidian ainda precisa ser conferido. Confira [[11 Estado da entrega]] antes de usar em notas importantes.
 
 Relacionados: [[08 Backup e recuperação]], [[04 Notas e memória]].
 
