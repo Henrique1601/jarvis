@@ -29,7 +29,7 @@ O contexto online é preparado sem ler o cofre local. Isso não constitui sandbo
 
 ## Credenciais e diagnóstico
 
-Abra `jarvis-gemini/CONFIGURAR-WORKER.bat` para conectar a conta, verificar o CLI, pausar, retomar, desconectar ou consultar o estado local. A senha é digitada no console sem exibição e não é salva. `INICIAR-WORKER.bat` inicia manualmente. As opções de inicialização usam `INICIALIZACAO-WORKER.ps1`: uma tarefa oculta no Agendador, executada somente ao entrar na sessão do usuário, sem privilégios elevados. A instalação da tarefa exige verificação real do CLI e autorização online; nesta entrega ela será recusada. Desativar a inicialização remove somente essa tarefa.
+Abra `jarvis-gemini/CONFIGURAR-WORKER.bat` para conectar a conta, verificar o CLI, pausar, retomar, desconectar ou consultar o estado local. Por solicitação do proprietário em 11/10/2026, a senha é exibida enquanto é digitada ou colada no console; ela não é salva. `INICIAR-WORKER.bat` inicia manualmente. As opções de inicialização usam `INICIALIZACAO-WORKER.ps1`: uma tarefa oculta no Agendador, executada somente ao entrar na sessão do usuário, sem privilégios elevados. A instalação exige verificação do protocolo do CLI e autorização online. Desativar a inicialização remove somente essa tarefa.
 
 Sessão Supabase, credencial revogável de dispositivo e resposta ainda não confirmada são protegidas com DPAPI em `%LOCALAPPDATA%/JarvisGemini/worker`. Não ficam no repositório nem no cofre Markdown. O dispositivo precisa da sessão da conta autorizada e de sua credencial própria; nenhuma chave administrativa do Supabase é necessária no computador.
 

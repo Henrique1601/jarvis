@@ -123,14 +123,14 @@ class WorkerTests(unittest.TestCase):
                 return {'access_token': 'fake-access', 'refresh_token': 'fake-refresh', 'expires_in': 3600}
             self.assertEqual(headers['Authorization'], 'Bearer fake-access')
             return {'deviceId': DEVICE, 'deviceToken': 'A' * 43}
-        with patch('builtins.input', return_value='synthetic@example.test'), patch.object(worker.getpass, 'getpass', return_value='SYNTHETIC_PASSWORD'), patch('builtins.print'):
+        with patch('builtins.input', side_effect=['synthetic@example.test', 'SYNTHETIC_PASSWORD']), patch('builtins.print'):
             worker.setup(self.vault, requester)
         self.assertEqual(len(calls), 3)
         credentials = self.vault.read('credentials')
         self.assertEqual(credentials['deviceId'], DEVICE)
         self.assertNotIn('password', credentials)
         self.assertNotIn('SYNTHETIC_PASSWORD', json.dumps(credentials))
-        with patch.object(self.vault, 'write', side_effect=OSError('PRIVATE_LOCAL_PATH')), patch('builtins.input', return_value='synthetic@example.test'), patch.object(worker.getpass, 'getpass', return_value='SYNTHETIC_PASSWORD'):
+        with patch.object(self.vault, 'write', side_effect=OSError('PRIVATE_LOCAL_PATH')), patch('builtins.input', side_effect=['synthetic@example.test', 'SYNTHETIC_PASSWORD']):
             with self.assertRaisesRegex(worker.WorkerError, 'salvar a conexão protegida') as error:
                 worker.setup(self.vault, requester)
             self.assertNotIn('PRIVATE_LOCAL_PATH', str(error.exception))

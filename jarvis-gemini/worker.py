@@ -7,7 +7,6 @@ import argparse
 import base64
 from contextlib import nullcontext
 import ctypes
-import getpass
 import hashlib
 import json
 import os
@@ -305,7 +304,9 @@ def setup(vault, requester=request_json):
     validate_supabase(url)
     key = public_key(config.get('supabaseAnonKey'))
     email = input('Email confirmado da sua conta Jarvis: ').strip()
-    password = getpass.getpass('Senha Supabase (não será exibida nem salva): ')
+    # Visible input was explicitly requested by the owner. Do not strip or log
+    # the password; it is used only for this login and never stored in the vault.
+    password = input('Senha da conta Jarvis (visível neste console; não será salva): ')
     try:
         session = setup_request(requester, 'login', url + '/auth/v1/token?grant_type=password', {'email': email, 'password': password}, {'apikey': key})
     finally:
