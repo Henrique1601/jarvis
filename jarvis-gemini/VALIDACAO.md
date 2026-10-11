@@ -1,5 +1,13 @@
 # Verificação do Jarvis
 
+## Organização 0.7 e segundo cérebro — 11 de outubro de 2026
+
+Implementadas as oito melhorias: conversas por assunto, cópia de código/respostas, tarefas com prazo/prioridade/projeto, notas com etiquetas/pastas/prévia, painel Windows, contexto selecionável, PWA/rascunhos e sincronização manual de notas escolhidas. A sincronização conserva versões e backups, recusa conflitos sem resolução explícita e trata a revisão remota como identificador opaco. O contexto da IA continua separado do cofre local.
+
+Passaram 91 testes online e build, 91 testes Windows (incluindo 19 sintéticos da sincronização) e a verificação adicional dos cinco testes do servidor após incluir os novos assets na whitelist. A migração `jarvis_cloud_v3_conversations_memory` foi aplicada; `verify-features.sql` passou no Supabase real com rollback. Antes e depois: uma nota, uma tarefa, duas mensagens e dois pedidos; nenhum registro sem conversa após a migração. Não houve envio de notas pessoais pela sincronização.
+
+Criados 14 guias Markdown conectados, compatíveis com Obsidian, e ajuda HTML pública com navegação e escape de HTML. Os testes conferem links internos e ausência de execução de HTML. Instalação no celular real, sincronização autenticada e próximo logon real do Windows permanecem pendentes. A interface desta entrega será conferida após o deploy; a resposta autenticada anterior está registrada abaixo.
+
 ## Legibilidade e atualização do painel — 11 de outubro de 2026
 
 Respostas de IA usam elementos DOM seguros para títulos, listas, negrito, ênfase e código; HTML, links e imagens não são ativados. Guardar a resposta preserva o Markdown original. A aba online consulta a disponibilidade do Windows a cada trinta segundos sem pendências e a cada cinco segundos com pedidos pendentes. A recuperação remove somente o aviso de polling; uma consulta da sessão anterior não altera avisos ou timers após sair e entrar novamente.

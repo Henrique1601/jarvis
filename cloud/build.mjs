@@ -5,14 +5,14 @@ const root = new URL('./', import.meta.url);
 const shared = new URL('../jarvis-gemini/web/', root);
 await mkdir(new URL('public/', root), { recursive: true });
 // Explicit asset list: never copy the vault, imported conversation, or runtime.
-for (const name of ['style.css', 'workspace.css', 'app.js', 'workspace.js']) {
+for (const name of ['style.css', 'workspace.css', 'app.js', 'workspace.js', 'features.js', 'features.css']) {
   await copyFile(new URL(name, shared), new URL('public/' + name, root));
 }
 let html = await readFile(new URL('index.html', shared), 'utf8');
 html = html.replace('<title>Jarvis • Antigravity</title>', '<title>Jarvis • Online</title>')
-  .replace('</head>', '<link rel="stylesheet" href="/cloud.css"></head>')
+  .replace('</head>', '<link rel="stylesheet" href="/cloud.css"><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#151a14"></head>')
   .replace('<body>', '<body class="cloud-locked">')
-  .replace('Prévia 0.4: a conexão de IA ainda está bloqueada. Memória e tarefas estão disponíveis.', 'Jarvis online · Sua memória fica na sua conta. O cofre Windows é separado; sincronização ainda não está disponível.')
+  .replace('Prévia 0.4: a conexão de IA ainda está bloqueada. Memória e tarefas estão disponíveis.', 'Jarvis online · Sua memória fica na sua conta. Sincronização com o Windows é opcional, somente para notas escolhidas.')
   .replaceAll('<b>Antigravity</b>', '<b>Antigravity no Windows</b>')
   .replace('JARVIS / ANTIGRAVITY', 'JARVIS / ONLINE')
   .replace('Antigravity processa os pedidos na nuvem.<br>As notas ficam no seu computador.', 'Seu Windows responde pelo Antigravity.<br>Notas e pedidos online ficam na sua conta Supabase.')
@@ -30,3 +30,6 @@ await writeFile(new URL('public/index.html', root), html);
 await copyFile(new URL('frontend/cloud.css', root), new URL('public/cloud.css', root));
 await build({ entryPoints: [fileURLToPath(new URL('frontend/platform.js', root))], outfile: fileURLToPath(new URL('public/platform.js', root)), bundle: true, minify: true, platform: 'browser', target: ['es2022'] });
 console.log('Painel compartilhado e autenticação online empacotados.');
+
+for (const name of ['sw.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'offline.html']) await copyFile(new URL('frontend/' + name, root), new URL('public/' + name, root));
+import { buildHelp } from './help-build.mjs'; await buildHelp(root);

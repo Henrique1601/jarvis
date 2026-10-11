@@ -4,6 +4,14 @@ Assistente pessoal para conversar sobre estudos e projetos, guardar notas e orga
 
 Repositório público: [Henrique1601/jarvis](https://github.com/Henrique1601/jarvis), com as aplicações Windows e web na branch `main`.
 
+## Organização e segundo cérebro — versão online 0.7
+
+Conversas podem ser criadas, renomeadas e pesquisadas por assunto, com histórico e contexto separados. Copie respostas ou blocos de código, registre tarefas com prazo, prioridade e projeto, organize notas por etiquetas e pasta e veja sua prévia Markdown. O painel Windows mostra a última comunicação e o pedido em andamento. Ao enviar, escolha até seis notas e a inclusão de tarefas; nenhuma nota marcada significa contexto sem notas.
+
+O site inclui manifesto e service worker para instalação no celular. Somente recursos públicos entram no cache; os rascunhos ficam na sessão por conta/conversa e não são enviados automaticamente. A sincronização seletiva é manual: [CONFIGURAR-SYNC.bat](jarvis-gemini/CONFIGURAR-SYNC.bat) trabalha apenas com notas online escolhidas numa pasta dedicada, com backups e conflitos preservados. Veja [o guia da sincronização](jarvis-gemini/SYNC-NOTAS.md).
+
+Abra [o segundo cérebro](Segundo%20Cerebro%20Jarvis/00%20Comece%20aqui.md) como cofre no Obsidian ou consulte [a ajuda no site](https://jarvis-ten-pi-14.vercel.app/help/). Há 14 guias conectados de uso, configuração, recuperação, arquitetura e manutenção. Consulte [o estado da entrega](Segundo%20Cerebro%20Jarvis/11%20Estado%20da%20entrega.md) para diferenciar testes de uso real.
+
 Aplicação publicada: [abrir Jarvis online](https://jarvis-ten-pi-14.vercel.app/). Crie sua conta com o e-mail autorizado e confirme o e-mail antes de entrar. Memória e tarefas não dependem da IA. Em 11/10/2026, o componente Windows conectado processou um pedido enviado com o computador indisponível; a resposta foi confirmada no painel e permaneceu após recarregar. A tarefa de inicialização automática está registrada; o próximo login real do Windows ainda precisa ser observado.
 
 ## Duas aplicações, dados separados

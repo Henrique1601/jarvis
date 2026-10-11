@@ -467,9 +467,12 @@ test('build exports only browser assets and excludes vault, runtime, conversatio
   try {
     const cloud = join(temporary, 'cloud'); const shared = join(temporary, 'jarvis-gemini', 'web');
     await mkdir(join(cloud, 'frontend'), { recursive: true }); await mkdir(shared, { recursive: true });
-    for (const asset of ['index.html', 'style.css', 'workspace.css', 'app.js', 'workspace.js'])
+    for (const asset of ['index.html', 'style.css', 'workspace.css', 'app.js', 'workspace.js', 'features.js', 'features.css'])
       await copyFile(new URL('../jarvis-gemini/web/' + asset, root), join(shared, asset));
-    await copyFile(new URL('frontend/cloud.css', root), join(cloud, 'frontend', 'cloud.css'));
+    for (const asset of ['cloud.css','sw.js','manifest.webmanifest','icon.svg','icon-192.png','icon-512.png','offline.html']) await copyFile(new URL('frontend/' + asset, root), join(cloud, 'frontend', asset));
+    await copyFile(new URL('help-build.mjs', root), join(cloud, 'help-build.mjs'));
+    const brain = join(temporary, 'Segundo Cerebro Jarvis'); await mkdir(brain);
+    await writeFile(join(brain, 'Inicio.md'), '# Guia público\nGuia de uso sintético.');
     const require = createRequire(import.meta.url);
     const sdk = require.resolve('@supabase/supabase-js').replaceAll('\\', '/');
     await writeFile(join(cloud, 'frontend', 'platform.js'), source.replace("'@supabase/supabase-js'", JSON.stringify(sdk)));
@@ -487,8 +490,8 @@ test('build exports only browser assets and excludes vault, runtime, conversatio
       TMP: process.env.TMP, GEMINI_API_KEY: privateMarker };
     await promisify(execFile)(process.execPath, [join(cloud, 'build.mjs')], { env, timeout: 30_000 });
     const assets = (await readdir(join(cloud, 'public'))).sort();
-    assert.deepEqual(assets, ['app.js', 'cloud.css', 'index.html', 'platform.js', 'style.css', 'workspace.css', 'workspace.js']);
-    for (const asset of assets) assert.ok(!(await readFile(join(cloud, 'public', asset), 'utf8')).includes(privateMarker), asset);
+    assert.deepEqual(assets, ['app.js', 'cloud.css', 'features.css', 'features.js', 'help', 'icon-192.png', 'icon-512.png', 'icon.svg', 'index.html', 'manifest.webmanifest', 'offline.html', 'platform.js', 'style.css', 'sw.js', 'workspace.css', 'workspace.js']);
+    for (const asset of assets.filter(item => item !== 'help')) assert.ok(!(await readFile(join(cloud, 'public', asset), 'utf8')).includes(privateMarker), asset);
     const html = await readFile(join(cloud, 'public', 'index.html'), 'utf8');
     assert.ok(html.indexOf('src="/platform.js"') < html.indexOf('src="/app.js"'));
     assert.match(html, /id="cloud-recovery"/); assert.match(html, /class="cloud-locked"/);
@@ -496,4 +499,13 @@ test('build exports only browser assets and excludes vault, runtime, conversatio
     assert.doesNotMatch(html, /Gemini API|GEMINI_API_KEY/);
     assert.ok(!html.includes('CONFIGURAR-ANTIGRAVITY.bat'));
   } finally { await rm(temporary, { recursive: true, force: true }); }
+});
+
+test('uncertain chat retries retain context and conversation identity; changed options start a distinct request', async () => {
+ const h = harness({session:owner,state:()=>response(200,queueState()),api:()=>response(503,{error:'Indisponível'})}); await flush();
+ const options={conversationId:'a',contextNoteIds:[],includeTasks:false};
+ await assert.rejects(h.context.window.jarvisPlatform.submitChat('Mesmo texto',options));
+ await assert.rejects(h.context.window.jarvisPlatform.submitChat('Mesmo texto',options));
+ await assert.rejects(h.context.window.jarvisPlatform.submitChat('Mesmo texto',{...options,conversationId:'b'}));
+ const bodies=h.calls.filter(call=>call.url==='/api/chat').map(call=>JSON.parse(call.options.body)); assert.equal(bodies[0].requestId,bodies[1].requestId); assert.notEqual(bodies[1].requestId,bodies[2].requestId); assert.deepEqual(bodies[0].contextNoteIds,[]); assert.equal(bodies[0].includeTasks,false); assert.equal(bodies[2].conversationId,'b');
 });

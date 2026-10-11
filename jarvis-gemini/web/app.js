@@ -92,10 +92,13 @@ if(window.jarvisPlatform){
   $('chat-form').onsubmit=async event=>{
     event.preventDefault();if(busy)return;const text=$('prompt').value.trim();if(!text)return;
     setBusy(true);notice('');let accepted=false;
+    const chatOptions = window.jarvisFeatures?.chatOptions() || {};
     try{
-      await platform.submitChat(text);
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) throw Error("Você está offline. Seu rascunho permanece nesta aba; envie quando a conexão voltar.");
+      await platform.submitChat(text, chatOptions);
       accepted=true;
-      if($('prompt').value.trim()===text)$('prompt').value='';
+      window.jarvisFeatures?.acceptedDraft(text, chatOptions.conversationId);
+      if($('prompt').value.trim()===text && (window.jarvisFeatures?.chatOptions().conversationId || null) === (chatOptions.conversationId || null)){$('prompt').value='';window.jarvisFeatures?.saveDraft();}
       notice('Pedido guardado na fila. O Windows processará quando estiver disponível.');
     }catch(error){notice(error.message);}finally{setBusy(false);}
     // Only this POST owns busy: its later refresh must not release a composer

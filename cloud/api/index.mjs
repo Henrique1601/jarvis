@@ -5,12 +5,14 @@ import { generate } from '../lib/gemini.mjs';
 import { queueState, registerWorker, claimWorker, workerCredentials, requireWorkerProvider,
   workerAttempt, workerHeartbeat, completion, FAILURE_CODES } from '../lib/queue.mjs';
 
-export const VERSION = '0.6.0';
+export const VERSION = '0.7.0';
 const GUIDE = '# Memória online do Jarvis\n\nAs notas desta conta ficam no Supabase, isoladas por usuário. '
-  + 'O chat usa apenas trechos selecionados e não executa ferramentas. '
-  + 'Edite uma nota pela interface; conflitos preservam a versão atual. '
-  + 'Use Exportar backup para baixar notas, versões, tarefas e conversa em JSON. '
-  + 'O Windows continua com seu cofre local; não há sincronização automática entre as duas versões.\n';
+  + 'Organize conversas por assunto, selecione até seis notas como contexto e escolha incluir tarefas. '
+  + 'O Antigravity responde pelo componente no Windows e segue as permissões do CLI. '
+  + 'Edite notas pela interface; etiquetas e pastas ajudam na busca, e conflitos preservam a versão atual. '
+  + 'Use Exportar backup para baixar notas, versões, tarefas, conversas e pedidos em JSON. '
+  + 'A sincronização com o Windows é manual e usa somente notas escolhidas. '
+  + 'Abra Ajuda e o Segundo Cérebro para instruções, diagnóstico e limites da integração.\n';
 
 export function createHandler({ env = process.env, fetcher = fetch } = {}) {
   return async function handler(req, res) {
@@ -67,6 +69,22 @@ export function createHandler({ env = process.env, fetcher = fetch } = {}) {
         case '/api/note-history': result = await db.rpc('jarvis_note_history', { p_id: uuid(data.id) }); break;
         case '/api/note-restore':
           result = await db.rpc('jarvis_note_restore', { p_id: uuid(data.id), p_version: uuid(data.version), p_revision: revision(data.revision) }); break;
+        case '/api/conversation':
+          result = await db.rpc('jarvis_conversation_create', { p_title: text(data.title, 160) }); status = 201; break;
+        case '/api/conversation-update':
+          result = await db.rpc('jarvis_conversation_update', { p_id: uuid(data.id), p_title: text(data.title, 160) }); break;
+        case '/api/task-details': {
+          const priority = data.priority ?? 'normal';
+          if (!['low', 'normal', 'high'].includes(priority) || (data.done !== undefined && typeof data.done !== 'boolean')) throw new ApiError(400, 'Detalhes da tarefa inválidos.');
+          const due = data.dueDate ?? null;
+          if (due !== null && (typeof due !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(due) || !Number.isFinite(Date.parse(due)) || new Date(due).toISOString().slice(0, 10) !== due)) throw new ApiError(400, 'Prazo inválido.');
+          result = await db.rpc('jarvis_task_details', { p_id: data.id ? uuid(data.id) : null, p_text: text(data.text, 300), p_done: data.done ?? null, p_due_date: due, p_priority: priority, p_project: text(data.project ?? '', 80, { empty: true }) }); status = data.id ? 200 : 201; break;
+        }
+        case '/api/note-metadata': {
+          if (!Array.isArray(data.tags) || data.tags.length > 10 || !['raw', 'wiki', 'outputs'].includes(data.folder)) throw new ApiError(400, 'Metadados da nota inválidos.');
+          const tags = [...new Set(data.tags.map(tag => text(tag, 40)))];
+          result = await db.rpc('jarvis_note_metadata', { p_id: uuid(data.id), p_revision: revision(data.revision), p_tags: tags, p_folder: data.folder }); break;
+        }
         case '/api/task':
           if (data.id && typeof data.done !== 'boolean') throw new ApiError(400, 'Informe o estado da tarefa.');
           result = await db.rpc('jarvis_task_save', data.id ? { p_id: uuid(data.id), p_done: data.done, p_text: null }
@@ -79,7 +97,15 @@ export function createHandler({ env = process.env, fetcher = fetch } = {}) {
         case '/api/chat': {
           const request = text(data.text, 12_000, { trim: false });
           if (config.provider === 'antigravity_windows') {
-            result = await db.rpc('jarvis_chat_enqueue', { p_request: request, p_request_id: uuid(data.requestId) });
+            const options = ['conversationId', 'contextNoteIds', 'includeTasks'].some(key => Object.hasOwn(data, key));
+            const params = { p_request: request, p_request_id: uuid(data.requestId) };
+            if (options) {
+              if (data.contextNoteIds !== undefined && (!Array.isArray(data.contextNoteIds) || data.contextNoteIds.length > 6)) throw new ApiError(400, 'Selecione até seis notas.');
+              if (data.includeTasks !== undefined && typeof data.includeTasks !== 'boolean') throw new ApiError(400, 'Seleção de tarefas inválida.');
+              Object.assign(params, { p_conversation_id: data.conversationId ? uuid(data.conversationId) : null,
+                p_context_note_ids: data.contextNoteIds === undefined ? null : [...new Set(data.contextNoteIds.map(uuid))].sort(), p_include_tasks: data.includeTasks ?? true });
+            }
+            result = await db.rpc(options ? 'jarvis_chat_enqueue_options' : 'jarvis_chat_enqueue', params);
             status = 202; break;
           }
           if (config.provider !== 'gemini_api') throw new ApiError(503, 'Provedor de IA inválido. Configure JARVIS_AI_PROVIDER no servidor.');
@@ -126,15 +152,15 @@ export function createHandler({ env = process.env, fetcher = fetch } = {}) {
           result = await db.rpc('jarvis_worker_fail', { ...workerAttempt(workerCredentials(req, data), data), p_code: data.code }); break;
         case '/api/diagnostics':
           result = { version: VERSION, cloud: true, provider: config.provider, cli: 'Executado somente pelo worker no Windows',
-            compatible: config.provider === 'gemini_api', windows: false, voiceInstalled: false, vault: 'Supabase com RLS',
+            compatible: ['gemini_api', 'antigravity_windows'].includes(config.provider), windows: false, voiceInstalled: false, vault: 'Supabase com RLS',
             login: 'Conta confirmada e autorizada', ...(await queueState(db, config)),
-            issues: config.provider === 'antigravity_windows' ? ['O despacho depende do gate administrativo e da validação real do controle de ferramentas.']
+            issues: config.provider === 'antigravity_windows' ? ['A resposta depende do componente conectado no Windows e do login Google no CLI. As ferramentas seguem as permissões do Antigravity.']
               : config.ai ? [] : ['Configure GEMINI_API_KEY e GEMINI_MODEL para habilitar o chat.'] }; break;
         case '/api/ai-check':
           if (config.provider === 'antigravity_windows') {
             const queue = await queueState(db, config);
             result = { ok: queue.worker.status === 'ready', cloud: true, provider: config.provider,
-              authenticatedModelTest: false, ...queue, login: 'A fila não confirma login no CLI nem controle real de ferramentas.' }; break;
+              authenticatedModelTest: false, ...queue, login: 'A disponibilidade informa a conexão do componente. O login Google e os limites do plano são verificados ao executar o pedido.' }; break;
           }
           // Configuration check is intentionally free: it does not make a billed model request.
           if (!config.ai) throw new ApiError(503, 'Configure GEMINI_API_KEY e GEMINI_MODEL no servidor para habilitar o chat.');

@@ -466,7 +466,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/state':
             with LOCK:
                 return self.respond({'token': self.server.token, 'messages': store.state['messages'], 'tasks': store.state['tasks'], 'notes': store.notes(), 'aiInstalled': ai_available(), 'provider': 'Antigravity CLI', 'voiceInstalled': importlib.util.find_spec('faster_whisper') is not None, 'windows': os.name == 'nt', 'vault': str(store.vault), 'version': VERSION})
-        allowed = {'/': ('index.html', 'text/html; charset=utf-8'), '/app.js': ('app.js', 'text/javascript; charset=utf-8'), '/workspace.js': ('workspace.js', 'text/javascript; charset=utf-8'), '/style.css': ('style.css', 'text/css; charset=utf-8')}
+        allowed = {'/': ('index.html', 'text/html; charset=utf-8'), '/app.js': ('app.js', 'text/javascript; charset=utf-8'), '/workspace.js': ('workspace.js', 'text/javascript; charset=utf-8'), '/features.js': ('features.js', 'text/javascript; charset=utf-8'), '/features.css': ('features.css', 'text/css; charset=utf-8'), '/style.css': ('style.css', 'text/css; charset=utf-8')}
         if path in allowed:
             name, mime = allowed[path]
             return self.respond((ASSETS / 'web' / name).read_bytes(), content_type=mime)

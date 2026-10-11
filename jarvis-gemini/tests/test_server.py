@@ -60,6 +60,11 @@ class Tests(unittest.TestCase):
         base=f'http://127.0.0.1:{http.server_port}'
         try:
             self.assertEqual(urlopen(base+'/').status,200)
+            for asset, mime in [('features.js', 'text/javascript'), ('features.css', 'text/css')]:
+                with urlopen(base+'/'+asset) as response:
+                    self.assertEqual(response.status, 200)
+                    self.assertIn(mime, response.headers['Content-Type'])
+                    self.assertGreater(len(response.read()), 0)
             with patch.object(server.antigravity, 'available', return_value=True):
                 with urlopen(base+'/api/state') as response:
                     state = json.load(response)

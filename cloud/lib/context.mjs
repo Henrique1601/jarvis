@@ -55,7 +55,7 @@ export function prepareContext(request, data) {
   };
   if (render().length > PROMPT_LIMIT) throw new ApiError(400, 'O pedido excede o orçamento de contexto.');
   const words = terms(request);
-  for (const note of rankNotes(data.notes || [], request).slice(0, 6)) {
+  for (const note of (data.explicitNotes ? (data.notes || []) : rankNotes(data.notes || [], request)).slice(0, 6)) {
     const item = { id: note.id, title: note.title, excerpts: [] };
     for (const part of excerpts(note.content, words)) {
       item.excerpts.push(part);

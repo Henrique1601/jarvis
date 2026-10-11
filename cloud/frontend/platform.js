@@ -12,6 +12,7 @@ let pollTimer = null;
 let pendingSubmit = null;
 let submitting = false;
 const stateListeners = new Set();
+const lockListeners = new Set();
 const pendingJob = job => job.status === 'queued' || job.status === 'processing';
 const pollWarning = 'Atualização da fila indisponível. Tentaremos novamente; seus pedidos permanecem guardados.';
 const ready = new Promise(resolve => { resolveReady = resolve; });
@@ -31,6 +32,7 @@ function loginError(error) {
   return 'Não foi possível entrar. Confira os dados e tente novamente, ou use Esqueci minha senha.';
 }
 function lock(messageText) {
+  for (const listener of lockListeners) listener(activeAccount);
   authorizationAttempt++;
   authorized = false;
   latestState = null;
@@ -213,9 +215,11 @@ function workerLabel(worker = {}) {
   if (worker.status === 'offline' || !worker.status) return 'Windows offline · pedidos ficam na fila';
   return reasonLabels[worker.reason] || reasonLabels[worker.status] || 'Worker do Windows pausado. Confira o aplicativo no computador.';
 }
-async function submitChat(text) {
+async function submitChat(text, options = {}) {
   if (submitting) throw Error('Aguarde o envio deste pedido.');
-  if (!pendingSubmit || pendingSubmit.text !== text) pendingSubmit = { text, requestId: crypto.randomUUID() };
+  const payload = { text, ...options };
+  const signature = JSON.stringify(payload);
+  if (!pendingSubmit || JSON.stringify(Object.fromEntries(Object.entries(pendingSubmit).filter(([key]) => key !== 'requestId'))) !== signature) pendingSubmit = { ...payload, requestId: crypto.randomUUID() };
   const submission = pendingSubmit;
   submitting = true;
   try {
@@ -272,6 +276,8 @@ window.addEventListener('online', () => { void pollState(); });
 window.jarvisPlatform = {
   ready, request, state: loadState, submitChat, renderJobs, workerLabel,
   active: () => authorized && !recovery,
+  account: () => activeAccount,
+  onLock(listener) { lockListeners.add(listener); return () => lockListeners.delete(listener); },
   onState(listener) { stateListeners.add(listener); return () => stateListeners.delete(listener); },
   async backup() {
     const result = await request('backup', {});

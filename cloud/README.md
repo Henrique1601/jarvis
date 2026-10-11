@@ -1,4 +1,10 @@
-# Jarvis web 0.6.0 — Supabase e fila Antigravity no Windows
+# Jarvis web 0.7.0 — organização, memória e Antigravity no Windows
+
+A entrega 0.7 adiciona conversas separadas, seleção explícita de notas/tarefas no contexto, tarefas com prazo/prioridade/projeto, etiquetas e pastas, cópia de respostas/código, painel de disponibilidade Windows e PWA com rascunhos temporários. A ajuda pública em `/help/` é gerada dos 14 guias de `Segundo Cerebro Jarvis/`. A sincronização manual de notas escolhidas usa o componente Windows; não importa o cofre pessoal.
+
+A migração aditiva `jarvis_cloud_v3_conversations_memory`, definida em `supabase/features.sql`, foi aplicada depois de schema e queue. `verify-features.sql` passou em transação revertida no banco real, com isolamento por conta/conversa, idempotência contextual, revisão de metadados e conclusão. As contagens anteriores de notas, tarefas, mensagens e pedidos permaneceram iguais. Aplicar novamente schema/queue antigos pode substituir RPCs desta entrega; novas instalações devem aplicar schema, queue e features nessa ordem.
+
+Novas rotas POST: `conversation`, `conversation-update`, `task-details` e `note-metadata`. Chat aceita `conversationId`, `contextNoteIds` (até seis UUIDs) e `includeTasks`. Omissão de seleção mantém contexto automático para clientes antigos; seleção vazia exclui notas. O backup v2 acrescenta conversas e os metadados. APIs privadas não são armazenadas pelo service worker; rascunhos são separados por conta e apagados ao sair.
 
 **Atualização de 11/10/2026:** o proprietário autorizou ferramentas do CLI e conectou o componente Windows. Um pedido enviado com o Windows indisponível foi processado; a resposta apareceu no Chrome e permaneceu após recarregar. Pausa e retomada pela tarefa agendada não duplicaram mensagens. O próximo login real do Windows ainda precisa ser observado. As evidências de bloqueio abaixo são históricas.
 
