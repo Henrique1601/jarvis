@@ -4,9 +4,56 @@ let token='',state=null,busy=false,recording=null;
 const notice=text=>{$('notice').textContent=text;};
 async function api(path,data){if(window.jarvisPlatform)return window.jarvisPlatform.request(path,data);const response=await fetch('/api/'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Jarvis-Token':token},body:JSON.stringify(data)});const result=await response.json();if(!response.ok)throw Error(result.error||'Falha no pedido.');return result;}
 function el(tag,text,className){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(className)node.className=className;return node;}
+// Small Markdown subset built with text nodes only. Raw HTML, links and images
+// stay literal; response content is never inserted through innerHTML.
+function renderAssistantMarkdown(content){
+  const body=el('div',undefined,'message-content');
+  const lines=String(content).replace(/\r\n?/g,'\n').split('\n');
+  function inline(node,text){
+    const tokens=/(?<!`)`([^`\n]+)`(?!`)|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*/g;
+    let cursor=0,match;
+    while((match=tokens.exec(text))){
+      node.append(document.createTextNode(text.slice(cursor,match.index)));
+      node.append(el(match[1]?'code':match[2]?'strong':'em',match[1]||match[2]||match[3]));
+      cursor=tokens.lastIndex;
+    }
+    node.append(document.createTextNode(text.slice(cursor)));
+  }
+  const fence=line=>line.match(/^\s{0,3}(`{3,}|~{3,})([^`]*)$/);
+  const item=line=>line.match(/^\s{0,3}(?:([-+*])\s+|(\d{1,9})[.)]\s+)(.+)$/);
+  const heading=line=>line.match(/^\s{0,3}(#{1,6})\s+(.+?)(?:\s+#+)?\s*$/);
+  let index=0;
+  while(index<lines.length){
+    if(!lines[index].trim()){index++;continue;}
+    const opening=fence(lines[index]);
+    if(opening){
+      index++;const code=[];
+      while(index<lines.length){
+        const closing=lines[index].match(/^\s{0,3}(`{3,}|~{3,})\s*$/);
+        if(closing&&closing[1][0]===opening[1][0]&&closing[1].length>=opening[1].length){index++;break;}
+        code.push(lines[index++]);
+      }
+      const pre=el('pre');pre.tabIndex=0;pre.setAttribute('aria-label','Bloco de código');
+      pre.append(el('code',code.join('\n')));body.append(pre);continue;
+    }
+    const title=heading(lines[index]);
+    if(title){const node=el('h'+Math.min(6,title[1].length+2));inline(node,title[2]);body.append(node);index++;continue;}
+    const first=item(lines[index]);
+    if(first){
+      const ordered=Boolean(first[2]),list=el(ordered?'ol':'ul');
+      if(ordered)list.start=Number(first[2]);
+      while(index<lines.length){const entry=item(lines[index]);if(!entry||Boolean(entry[2])!==ordered)break;const node=el('li');inline(node,entry[3]);list.append(node);index++;}
+      body.append(list);continue;
+    }
+    const paragraph=[];
+    while(index<lines.length&&lines[index].trim()&&!fence(lines[index])&&!heading(lines[index])&&!item(lines[index]))paragraph.push(lines[index++]);
+    const node=el('p');inline(node,paragraph.join('\n'));body.append(node);
+  }
+  return body;
+}
 function notesRender(notes){$('notes').replaceChildren();if(!notes.length)$('notes').append(el('p','Nenhuma nota encontrada.','empty'));for(const note of notes){const button=el('button',note.title,'note');button.append(el('small',note.content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/,'').replace(/^\s*#.*\n/,'').trim().slice(0,120)));button.onclick=()=>openRead(note.id,note.title);$('notes').append(button);}}
 function openNote(content='',title=''){$('note-title').value=title;$('note-content').value=content;$('note-dialog').showModal();}
-function messagesRender(){const box=$('messages');box.replaceChildren();if(!state.messages.length){const welcome=el('div','O que vamos construir hoje?','welcome');welcome.append(el('small','Seus projetos, ideias e próximos passos começam aqui.'));box.append(welcome);}for(const msg of state.messages){const article=el('article',undefined,'message '+msg.role);article.append(el('span',msg.role==='assistant'?'JARVIS':'VOCÊ','role'),el('div',msg.content));if(msg.role==='assistant'){const actions=el('div',undefined,'message-actions');const save=el('button','Guardar resposta','subtle');save.onclick=()=>openNote(msg.content,'Resposta do Jarvis');actions.append(save);if(state.windows){const speak=el('button','Ouvir','subtle');speak.onclick=async()=>{speak.disabled=true;try{notice('Lendo resposta com a voz do Windows…');await api('speak',{text:msg.content.slice(0,6000)});notice('');}catch(e){notice(e.message);}finally{speak.disabled=false;}};actions.append(speak);}article.append(actions);if(msg.sources?.length){const sources=el('details',undefined,'message-sources');sources.append(el('summary','Notas enviadas como contexto · '+msg.sources.length));for(const source of msg.sources){const link=el('button',source.title,'subtle');link.onclick=()=>openRead(source.id,source.title);sources.append(link);}article.append(sources);}}box.append(article);}box.scrollTop=box.scrollHeight;}
+function messagesRender(){const box=$('messages');box.replaceChildren();if(!state.messages.length){const welcome=el('div','O que vamos construir hoje?','welcome');welcome.append(el('small','Seus projetos, ideias e próximos passos começam aqui.'));box.append(welcome);}for(const msg of state.messages){const article=el('article',undefined,'message '+msg.role);article.append(el('span',msg.role==='assistant'?'JARVIS':'VOCÊ','role'),msg.role==='assistant'?renderAssistantMarkdown(msg.content):el('div',msg.content));if(msg.role==='assistant'){const actions=el('div',undefined,'message-actions');const save=el('button','Guardar resposta','subtle');save.onclick=()=>openNote(msg.content,'Resposta do Jarvis');actions.append(save);if(state.windows){const speak=el('button','Ouvir','subtle');speak.onclick=async()=>{speak.disabled=true;try{notice('Lendo resposta com a voz do Windows…');await api('speak',{text:msg.content.slice(0,6000)});notice('');}catch(e){notice(e.message);}finally{speak.disabled=false;}};actions.append(speak);}article.append(actions);if(msg.sources?.length){const sources=el('details',undefined,'message-sources');sources.append(el('summary','Notas enviadas como contexto · '+msg.sources.length));for(const source of msg.sources){const link=el('button',source.title,'subtle');link.onclick=()=>openRead(source.id,source.title);sources.append(link);}article.append(sources);}}box.append(article);}box.scrollTop=box.scrollHeight;}
 function tasksRender(){$('tasks').replaceChildren();for(const task of state.tasks){const label=el('label',undefined,'task'+(task.done?' done':''));const check=el('input');check.type='checkbox';check.checked=task.done;check.onchange=async()=>{try{await api('task',{id:task.id,done:check.checked});await refresh(false);}catch(e){check.checked=!check.checked;notice(e.message);}};label.append(check,el('span',task.text));$('tasks').append(label);}$('task-count').textContent=String(state.tasks.filter(t=>!t.done).length).padStart(2,'0');}
 async function refresh(messages=true){if(window.jarvisPlatform){state=await window.jarvisPlatform.state();}else{const response=await fetch('/api/state');if(!response.ok)throw Error('Servidor indisponível.');state=await response.json();}token=state.token||'';$('connection').textContent=state.cloud?'JARVIS ONLINE':'SERVIÇO LOCAL ATIVO';$('ai-status').textContent=state.cloud?(state.aiInstalled?'API configurada':'Configurar API'):(state.aiInstalled?'CLI instalado':'Instalar CLI');$('voice-status').textContent=state.cloud?'Disponível no Windows':(state.voiceInstalled?'Whisper instalado':'Instalar voz');$('note-count').textContent=state.notes.length+' notas';$('vault-path').textContent=state.vault;tasksRender();notesRender(state.notes);if(messages)messagesRender();if(state.cloud){$('mic').disabled=true;$('mic').title='A transcrição local está disponível na versão Windows.';}setBusy(busy);}
 function setBusy(value){busy=value;$('send').disabled=value;$('activity').textContent=value?'Jarvis está pensando…':(state?.cloud&&!state.aiInstalled?'Conversa aguardando configuração da IA':'Pronto para conversar');}

@@ -1,12 +1,12 @@
 # Jarvis web 0.6.0 — Supabase e fila Antigravity no Windows
 
-**Atualização de 10/10/2026:** o proprietário autorizou remover o bloqueio por ferramentas. O código fonte aceita o inventário e eventos do CLI, preservando protocolo, login, fila e cancelamento. Uma resposta direta autenticada do Antigravity 1.3.3 passou; a jornada pela fila e reinício ainda dependem da conexão do componente Windows. As evidências de bloqueio abaixo são históricas.
+**Atualização de 11/10/2026:** o proprietário autorizou ferramentas do CLI e conectou o componente Windows. Um pedido enviado com o Windows indisponível foi processado; a resposta apareceu no Chrome e permaneceu após recarregar. Pausa e retomada pela tarefa agendada não duplicaram mensagens. O próximo login real do Windows ainda precisa ser observado. As evidências de bloqueio abaixo são históricas.
 
 O painel online autentica a conta e guarda memória, tarefas, conversa e pedidos no Supabase. A versão 0.6 implementa uma fila: o navegador pode enviar pedidos mesmo com o computador desligado; um worker Windows consulta a fila por HTTPS e utiliza o Antigravity com o login Google oficial. Vercel não executa o CLI nem acessa o disco do computador.
 
-**Situação atual:** fila 0.6 [publicada](https://jarvis-ten-pi-14.vercel.app/), migração aplicada e envio, persistência após recarga e cancelamento verificados na conta autenticada. **Processamento Antigravity bloqueado:** o CLI real 1.3.3 anunciou 60 ferramentas apesar do perfil `tools: []`. Nenhum pedido ou contexto foi enviado nesse teste. Pedidos podem aguardar liberação, mas expiram após sete dias; não há respostas fictícias nem fallback automático para Gemini API.
+**Situação atual:** fila 0.6 [publicada](https://jarvis-ten-pi-14.vercel.app/), migração aplicada e envio, persistência após recarga e cancelamento verificados na conta autenticada. Processamento Antigravity habilitado no projeto existente, com resposta real validada. O contexto usa dados online; ferramentas seguem as permissões normais do CLI, sem garantia de sandbox de arquivos. Pedidos aguardando expiram após sete dias; não há fallback automático para Gemini API.
 
-Veja [Antigravity no Windows](ANTIGRAVITY-WINDOWS.md) para configurar o componente e entender a restrição atual.
+Veja [Antigravity no Windows](ANTIGRAVITY-WINDOWS.md) para configurar o componente e entender a política atual.
 
 ## Arquitetura e dados
 
@@ -20,15 +20,16 @@ A API valida o Bearer token em `/auth/v1/user`, exige e-mail confirmado e autori
 - Há até cinco pedidos pendentes por conta. O prazo de sete dias vem do servidor. Os estados são `queued`, `processing`, `completed`, `failed`, `cancelled` e `expired`.
 - `GET /api/state` inclui os vinte pedidos mais recentes e o estado do worker. `GET /api/chat-job?id=UUID` consulta um pedido; `POST /api/chat-cancel` cancela pelo `jobId`, inclusive durante processamento.
 - O painel mostra pedidos ainda não concluídos e recebe respostas concluídas pelo histórico, sem duplicar o pedido. A posição é mostrada quando fornecida pelo servidor. Login Google, limite de uso, falta de conexão e bloqueio de permissões têm mensagens próprias.
-- Com pedidos pendentes, a aba ativa atualiza o estado a cada cinco segundos, sem sobrepor leituras. Ocultar a aba ou bloquear a sessão pausa as consultas; voltar à aba ou recuperar a conexão atualiza o estado. Novos pedidos ficam bloqueados somente durante seu próprio envio.
+- Com pedidos pendentes, a aba ativa atualiza o estado a cada cinco segundos; sem pendências, consulta a disponibilidade do Windows a cada trinta segundos, sem sobrepor leituras. Ocultar a aba ou bloquear a sessão pausa as consultas; voltar à aba ou recuperar a conexão atualiza o estado. Um aviso de consulta indisponível é removido quando a consulta se recupera, preservando avisos de outras operações. Novos pedidos ficam bloqueados somente durante seu próprio envio.
+- Respostas exibem títulos, listas, negrito, ênfase e código com formatação Markdown básica. HTML, links e imagens permanecem inativos. “Guardar resposta” conserva o conteúdo Markdown original; a formatação não modifica o histórico.
 
 O navegador não recebe a credencial do dispositivo. `CONFIGURAR-WORKER.bat` solicita os dados necessários no console Windows; o login Google ocorre na interface oficial do Antigravity, fora do painel web. Pausa, desconexão e credencial protegida pelo Windows estão descritas no guia do componente. O backup online continua exportando os dados da conta.
 
 ## Configurar Supabase
 
-1. O projeto existente tem referência `jsyihprjzjjcjgpgnfrt`, em São Paulo. As migrações `jarvis_cloud_v1` e `jarvis_cloud_v2_antigravity_queue` foram aplicadas. A fila permanece com execução desativada.
+1. O projeto existente tem referência `jsyihprjzjjcjgpgnfrt`, em São Paulo. As migrações `jarvis_cloud_v1` e `jarvis_cloud_v2_antigravity_queue` foram aplicadas. A execução da fila foi habilitada após configuração e validação autenticadas.
 2. Em outro projeto, revise e aplique `supabase/schema.sql` antes de `supabase/queue.sql`. No projeto existente, confira o histórico e revise a migração adicional antes de aplicá-la. Não execute um script em um destino presumido.
-3. Mantenha o gate administrativo da fila desabilitado, além de `JARVIS_ANTIGRAVITY_ENABLED=false`. Não libere processamento enquanto a restrição real de ferramentas não estiver comprovada.
+3. Em uma instalação nova, mantenha o gate administrativo e `JARVIS_ANTIGRAVITY_ENABLED=false` até configurar o componente e validar protocolo, permissões escolhidas e execução autenticada. O projeto existente está habilitado conforme a política autorizada pelo proprietário.
 4. Prepare contas Supabase Auth com e-mail confirmado. Pelo SQL Editor administrativo, insira os e-mails permitidos em `public.jarvis_allowed_emails`, em minúsculas, e mantenha os mesmos em `ALLOWED_EMAILS`. Cadastro pela interface não concede autorização automaticamente.
 5. Cadastre a URL final como Site URL e os retornos necessários em Redirect URLs; previews e localhost têm URLs próprias. Veja [URLs de autenticação](https://supabase.com/docs/guides/auth/redirect-urls).
 6. Confira isolamento, quotas, cancelamento e conclusão transacional com `supabase/verify.sql` e `supabase/verify-queue.sql`, em um projeto preparado para testes. A verificação da fila passou no Postgres real em 10/10/2026 com usuários sintéticos e rollback, sem alterar os dados existentes ou ativar o processamento.
@@ -51,7 +52,7 @@ Não publique a lista real, senhas, tokens, credenciais de dispositivo ou chaves
 | `SUPABASE_ANON_KEY` | Chave pública `anon` ou publishable; acesso continua condicionado à sessão e RLS | Servidor; configuração pública necessária chega ao frontend |
 | `ALLOWED_EMAILS` | E-mails autorizados, separados por vírgula e confirmados | Somente servidor |
 | `JARVIS_AI_PROVIDER` | `antigravity_windows`, padrão da versão 0.6 | Servidor |
-| `JARVIS_ANTIGRAVITY_ENABLED` | `false`; o gate do banco também permanece desabilitado | Servidor |
+| `JARVIS_ANTIGRAVITY_ENABLED` | `true` no projeto validado; `false` suspende processamento. O gate do banco também precisa autorizar execução | Servidor |
 
 Use Environment Variables da Vercel nos ambientes corretos. Mudanças de ambiente exigem novo deployment. `GET /api/config` fornece somente URL e chave pública Supabase, sem allowlist ou segredos. [Referência Vercel](https://vercel.com/docs/environment-variables).
 
@@ -77,11 +78,11 @@ py -3 -m unittest discover -s tests -v
 
 ## Deploy na Vercel
 
-O repositório [Henrique1601/jarvis](https://github.com/Henrique1601/jarvis) está conectado ao projeto Vercel `prj_emYK9JO8g3C20VgvSJoIYwlAKPna`. A publicação automática após push foi confirmada na versão anterior; a nova entrega ainda requer confirmação.
+O repositório [Henrique1601/jarvis](https://github.com/Henrique1601/jarvis) está conectado ao projeto Vercel `prj_emYK9JO8g3C20VgvSJoIYwlAKPna`. A publicação automática após push e a jornada autenticada da fila foram confirmadas; cada alteração exige seus próprios checks.
 
 1. Use Root Directory `cloud`, Node.js 24, preset Other, Build Command `npm run build` e Output Directory `public`.
 2. Mantenha Include source files outside of the Root Directory habilitado: o build usa os assets de `jarvis-gemini/web/`. `vercel.json` encaminha `/api/*` ao handler preservando rota e query.
-3. Prepare as variáveis acima, schema, fila, allowlist e URLs de Auth. Preserve os dois gates de execução desabilitados.
+3. Prepare as variáveis acima, schema, fila, allowlist e URLs de Auth. Em instalações novas, habilite os dois gates somente após configurar e validar o componente.
 4. Verifique preview e produção: login/logout, sessão entre abas, persistência de notas/tarefas, envio offline, prazo, status e cancelamento da fila. Registre migração, commit, deployment e evidências somente após os checks reais.
 
 O worker inicia conexões HTTPS para a nuvem. Não é necessário túnel nem porta pública; o painel local continua em `127.0.0.1`.
@@ -93,9 +94,9 @@ O worker inicia conexões HTTPS para a nuvem. Não é necessário túnel nem por
 - Memória e tarefas persistidas; RLS/RPC impedem acesso entre contas.
 - Fila durável e idempotente, limite de pendentes, prazo de sete dias, cancelamento e status verificados no banco e no deploy real.
 - Worker respeita gates antes de buscar/iniciar pedido; resultado incerto não provoca geração automática repetida; conclusão persiste o par de mensagens atomicamente.
-- Processamento real só será considerado aprovado após o CLI comprovar ausência de ferramentas e uma jornada autenticada completa. A versão atual permanece bloqueada nesse critério.
+- Processamento real exige protocolo válido, permissões escolhidas conscientemente e jornada autenticada completa. O proprietário autorizou ferramentas; o transporte não exige inventário vazio. Essa política não comprova confinamento de arquivos.
 
-## Registro de validação 0.6 — 10/10/2026
+## Registro histórico da entrega inicial 0.6 — 10/10/2026
 
 | Verificação | Resultado |
 | --- | --- |

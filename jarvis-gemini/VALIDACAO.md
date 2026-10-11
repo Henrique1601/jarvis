@@ -1,5 +1,11 @@
 # Verificação do Jarvis
 
+## Legibilidade e atualização do painel — 11 de outubro de 2026
+
+Respostas de IA usam elementos DOM seguros para títulos, listas, negrito, ênfase e código; HTML, links e imagens não são ativados. Guardar a resposta preserva o Markdown original. A aba online consulta a disponibilidade do Windows a cada trinta segundos sem pendências e a cada cinco segundos com pedidos pendentes. A recuperação remove somente o aviso de polling; uma consulta da sessão anterior não altera avisos ou timers após sair e entrar novamente.
+
+Passaram 75 testes online, incluindo seis de Markdown e três regressões de polling, e o build. Passaram 72 testes Windows fora do sandbox, pois os testes HTTP locais falharam com as restrições de rede do sandbox. O Chrome autenticado não está conectado nesta sessão e a prévia localhost também ficou inacessível no navegador interno; portanto, a nova formatação ainda requer confirmação visual na interface. A resposta autenticada registrada na seção seguinte foi validada antes desta mudança.
+
 ## Fila autenticada e retomada do componente — 11 de outubro de 2026
 
 A conta foi conectada pelo usuário no console; um dispositivo revogável está registrado e a sessão permanece protegida com DPAPI. O startup-check real confirmou o protocolo do CLI e o gate online, sem buscar pedidos. O worker iniciou em segundo plano e concluiu o pedido de exercícios JavaScript que já estava aguardando com Windows offline: início e conclusão gravados, duas mensagens persistidas e um pedido concluído, sem duplicação.

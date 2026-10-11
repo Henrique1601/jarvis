@@ -57,7 +57,7 @@ function harness({ session = null, sessionError = null, signInError = null, conf
   } };
   const context = {
     window: { addEventListener: (name, fn) => windowEvents.set(name, fn) },
-    document: { hidden: false, getElementById: get, createElement: () => new Element(), body, querySelector: get,
+    document: { hidden: false, getElementById: get, createElement: () => new Element(), createTextNode: text => ({ textContent: String(text), children: [] }), body, querySelector: get,
       querySelectorAll: selector => selector === 'dialog[open]' ? [...nodes.values()].filter(node => node.open) : [], addEventListener: (name, fn) => documentEvents.set(name, fn) },
     location: { origin: 'https://jarvis.example.test', reload: () => { reloads++; } },
     sessionStorage: tabStorage, localStorage: sharedStorage, queueMicrotask, URL, Blob,
@@ -75,7 +75,7 @@ function harness({ session = null, sessionError = null, signInError = null, conf
   context.window.jarvisPlatform.ready.then(() => { ready = true; });
   return { context, get, calls, classes, client, get sdkOptions() { return sdkOptions; }, get ready() { return ready; }, get reloads() { return reloads; },
     timers, mountApp: () => vm.runInContext(appSource, context), mountWorkspace: () => vm.runInContext(workspaceSource, context),
-    tick: async () => { const entry = [...timers].find(([, value]) => value.ms === 5000); if (entry) { timers.delete(entry[0]); await entry[1].fn(); } await flush(); },
+    tick: async (ms = 5000) => { const entry = [...timers].find(([, value]) => value.ms === ms); if (entry) { timers.delete(entry[0]); await entry[1].fn(); } await flush(); },
     visibility: async hidden => { context.document.hidden = hidden; documentEvents.get('visibilitychange')?.(); await flush(); },
     online: async () => { windowEvents.get('online')?.(); await flush(); },
     emit: (event, value = session) => subscribers.forEach(fn => fn(event, value)),
@@ -86,6 +86,48 @@ const jobFixture = { id: '00000000-0000-4000-8000-000000000099', text: 'Pedido d
 const queueState = (jobs = [jobFixture]) => ({ cloud: true, windows: false, provider: 'Antigravity no Windows', aiInstalled: false,
   worker: { status: 'offline', reason: 'connection_error' }, notes: [], tasks: [], messages: [], jobs, vault: 'Supabase' });
 const treeText = node => [node.textContent, ...(node.children || []).map(treeText)].join(' ');
+
+test('idle Windows availability refreshes every 30 seconds and switches to five seconds for pending jobs', async () => {
+  let current = queueState([]);
+  const h = harness({ session: owner, state: () => response(200, current) });
+  await flush(); h.mountApp(); await flush();
+  assert.equal([...h.timers.values()][0]?.ms, 30000);
+  current = { ...queueState([]), worker: { status: 'ready' } }; await h.tick(30000);
+  assert.match(h.get('ai-status').textContent, /Windows conectado/);
+  current = queueState(); await h.tick(30000);
+  assert.equal([...h.timers.values()][0]?.ms, 5000);
+  current = queueState([{ ...jobFixture, status: 'completed' }]); await h.tick();
+  assert.equal([...h.timers.values()][0]?.ms, 30000);
+  await h.visibility(true); assert.equal(h.timers.size, 0);
+  await h.visibility(false); assert.equal([...h.timers.values()][0]?.ms, 30000);
+});
+
+test('poll recovery removes its warning and never overwrites an unrelated send error', async () => {
+  let failed = false;
+  const h = harness({ session: owner, state: () => {
+    if (failed) throw Error('synthetic-network-error');
+    return response(200, queueState());
+  } }); await flush();
+  failed = true; await h.tick(); assert.match(h.get('notice').textContent, /Atualização da fila indisponível/);
+  failed = false; await h.tick(); assert.equal(h.get('notice').textContent, '');
+  failed = true; await h.tick();
+  h.get('notice').textContent = 'Não foi possível enviar a mensagem.';
+  failed = false; await h.tick(); assert.equal(h.get('notice').textContent, 'Não foi possível enviar a mensagem.');
+  failed = true; await h.tick(); assert.equal(h.get('notice').textContent, 'Não foi possível enviar a mensagem.');
+});
+
+test('an old poll cannot display its failure or alter the timer after a fresh login', async () => {
+  let blocked = false, release;
+  const h = harness({ session: owner, state: () => blocked
+    ? new Promise(resolve => { release = resolve; }) : response(200, queueState()) }); await flush();
+  blocked = true; const pending = h.tick(); await flush();
+  h.emit('SIGNED_OUT', null); blocked = false; h.emit('SIGNED_IN', owner); await flush();
+  const timer = [...h.timers.keys()][0];
+  release(response(503, { error: 'old-request-error' })); await pending;
+  assert.equal(h.get('notice').textContent, '');
+  assert.equal([...h.timers.keys()][0], timer);
+  assert.equal(h.context.window.jarvisPlatform.active(), true);
+});
 
 test('queue retries retain the request UUID after uncertain delivery but new text gets a new UUID', async () => {
   let failed = true;
@@ -104,7 +146,7 @@ test('queue retries retain the request UUID after uncertain delivery but new tex
   assert.match(bodies[0].requestId, /^[a-f0-9-]{36}$/);
 });
 
-test('queue polling shares state requests, pauses hidden tabs and stops after terminal jobs', async () => {
+test('queue polling shares state requests, pauses hidden tabs and slows after terminal jobs', async () => {
   let jobs = [jobFixture]; let release;
   const h = harness({ session: owner, state: () => release ? new Promise(resolve => { release = resolve; }) : response(200, queueState(jobs)) });
   await flush(); await h.context.window.jarvisPlatform.state();
@@ -116,7 +158,7 @@ test('queue polling shares state requests, pauses hidden tabs and stops after te
   const resolveState = release; release = null; resolveState(response(200, queueState(jobs))); await Promise.all([first, second]);
   await h.visibility(true); assert.equal(h.timers.size, 0);
   jobs = [{ ...jobFixture, status: 'completed' }]; await h.visibility(false);
-  assert.equal(emissions, 1); assert.equal(h.timers.size, 0);
+  assert.equal(emissions, 1); assert.equal([...h.timers.values()][0]?.ms, 30000);
 });
 
 test('queue renders only noncompleted requests once and cancellation refreshes state', async () => {
@@ -175,7 +217,7 @@ test('polling completes a queued conversation once, then resumes on browser conn
   await h.tick();
   assert.equal(treeText(h.get('messages')).split(jobFixture.text).length - 1, 1);
   assert.equal(treeText(h.get('messages')).split('Resposta concluída').length - 1, 1);
-  assert.equal(h.timers.size, 0);
+  assert.equal([...h.timers.values()][0]?.ms, 30000);
   current = queueState([{ ...jobFixture, status: 'processing' }]); await h.online();
   assert.equal(h.timers.size, 1); assert.match(treeText(h.get('messages')), /Processando no Windows/);
   const count = h.calls.length; await h.tick(); assert.equal(h.calls.length, count + 1); assert.equal(h.timers.size, 1);
@@ -187,7 +229,7 @@ test('temporary queue outage preserves visible pending jobs and continues pollin
   current = { ...queueState(), queuesUnavailable: true, worker: { status: 'error', reason: 'connection_error' } }; delete current.jobs;
   await h.tick();
   assert.match(treeText(h.get('messages')), /Pedido de teste/); assert.equal(h.timers.size, 1);
-  current = queueState([{ ...jobFixture, status: 'cancelled' }]); await h.tick(); assert.equal(h.timers.size, 0);
+  current = queueState([{ ...jobFixture, status: 'cancelled' }]); await h.tick(); assert.equal([...h.timers.values()][0]?.ms, 30000);
 });
 
 test('a slow refresh cannot release the composer while a subsequent POST is pending', async () => {

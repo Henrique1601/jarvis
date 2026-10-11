@@ -13,6 +13,7 @@ let pendingSubmit = null;
 let submitting = false;
 const stateListeners = new Set();
 const pendingJob = job => job.status === 'queued' || job.status === 'processing';
+const pollWarning = 'Atualização da fila indisponível. Tentaremos novamente; seus pedidos permanecem guardados.';
 const ready = new Promise(resolve => { resolveReady = resolve; });
 const message = text => { byId('auth-notice').textContent = text; };
 function controls(disabled) {
@@ -149,8 +150,8 @@ function stopPolling() {
 }
 function schedulePoll() {
   stopPolling();
-  if (authorized && !recovery && !document.hidden && latestState?.jobs?.some(pendingJob))
-    pollTimer = setTimeout(pollState, 5000);
+  if (authorized && !recovery && !document.hidden)
+    pollTimer = setTimeout(pollState, latestState?.jobs?.some(pendingJob) ? 5000 : 30000);
 }
 async function loadState() {
   if (!stateFlight) {
@@ -170,12 +171,19 @@ async function loadState() {
 async function pollState() {
   stopPolling();
   if (!authorized || recovery || document.hidden) return;
+  const attempt = authorizationAttempt;
   try {
     const result = await loadState();
-    if (authorized && !recovery && !document.hidden) for (const listener of stateListeners) listener(result);
+    if (attempt === authorizationAttempt && authorized && !recovery && !document.hidden) {
+      if (byId('notice').textContent === pollWarning) byId('notice').textContent = '';
+      for (const listener of stateListeners) listener(result);
+    }
   } catch {
-    if (authorized) byId('notice').textContent = 'Atualização da fila indisponível. Tentaremos novamente; seus pedidos permanecem guardados.';
-  } finally { schedulePoll(); }
+    // A poll from the previous session must not alter the newly signed-in UI.
+    // Preserve action errors: recovery may remove only the polling warning.
+    if (attempt === authorizationAttempt && authorized && !recovery && !document.hidden && !byId('notice').textContent)
+      byId('notice').textContent = pollWarning;
+  } finally { if (attempt === authorizationAttempt) schedulePoll(); }
 }
 const reasonLabels = {
   auth_required: 'Entre com sua conta Google no Antigravity do Windows.',

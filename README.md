@@ -4,13 +4,13 @@ Assistente pessoal para conversar sobre estudos e projetos, guardar notas e orga
 
 Repositório público: [Henrique1601/jarvis](https://github.com/Henrique1601/jarvis), com as aplicações Windows e web na branch `main`.
 
-Aplicação publicada: [abrir Jarvis online](https://jarvis-ten-pi-14.vercel.app/). Crie sua conta com o e-mail autorizado e confirme o e-mail antes de entrar. Memória e tarefas não dependem da IA. Em 10/10/2026, o proprietário autorizou ferramentas do Antigravity e uma resposta direta autenticada foi validada. O site usa uma fila; o componente Windows precisa conectar a conta para processá-la.
+Aplicação publicada: [abrir Jarvis online](https://jarvis-ten-pi-14.vercel.app/). Crie sua conta com o e-mail autorizado e confirme o e-mail antes de entrar. Memória e tarefas não dependem da IA. Em 11/10/2026, o componente Windows conectado processou um pedido enviado com o computador indisponível; a resposta foi confirmada no painel e permaneceu após recarregar. A tarefa de inicialização automática está registrada; o próximo login real do Windows ainda precisa ser observado.
 
 ## Duas aplicações, dados separados
 
 | Aplicação | Como funciona | Situação |
 | --- | --- | --- |
-| Web em `cloud/` | Frontend e API na Vercel; autenticação, dados e fila Supabase; respostas por componente Windows | Fila publicada; conexão do dispositivo Windows necessária |
+| Web em `cloud/` | Frontend e API na Vercel; autenticação, dados e fila Supabase; respostas por componente Windows | Resposta real pela fila e persistência no painel validadas |
 | Windows em `jarvis-gemini/` | Python, painel local, arquivos Markdown, tarefas, histórico e backup | Código fonte atualizado; resposta direta Antigravity autenticada validada |
 
 A versão web usa banco remoto. A versão Windows conserva o cofre e o estado no computador. **Sincronização entre as duas versões ainda não foi implementada.** Publicar o repositório ou o site não envia automaticamente o cofre do PC para a nuvem.
@@ -41,7 +41,7 @@ Credenciais, cofre de uso, histórico pessoal, dependências, backups e binário
 
 ## Verificação e publicação
 
-Na implementação 0.6, passaram 66 testes cloud (29 de backend e 37 de frontend/build), o build e 65 testes Windows. A migração aditiva `jarvis_cloud_v2_antigravity_queue` foi aplicada no Supabase com execução desativada; a verificação transacional real da fila passou com rollback e preservou os dados anteriores. A versão foi publicada na Vercel; envio, posição, prazo de sete dias, recarga e cancelamento foram verificados pela interface autenticada. [Os dois jobs de CI passaram](https://github.com/Henrique1601/jarvis/actions/runs/38082121979) para `d95315d`. Os resultados Windows estão em [VALIDACAO.md](jarvis-gemini/VALIDACAO.md). A execução Antigravity permanece bloqueada pela restrição de ferramentas; resposta real e retomada após reinício ainda não foram validadas.
+Na entrega inicial 0.6, passaram 66 testes cloud (29 de backend e 37 de frontend/build), o build e 65 testes Windows. A migração aditiva `jarvis_cloud_v2_antigravity_queue` foi aplicada com execução inicialmente desativada; a verificação transacional da fila preservou os dados anteriores. Envio, posição, prazo, recarga e cancelamento foram verificados pela interface autenticada. [Os dois jobs de CI passaram](https://github.com/Henrique1601/jarvis/actions/runs/38082121979) para `d95315d`. Após a autorização de ferramentas pelo proprietário, a execução foi ativada e uma resposta real pela fila, pausa e retomada do componente sem duplicação foram validadas em 11/10/2026. Consulte [VALIDACAO.md](jarvis-gemini/VALIDACAO.md) para os resultados atuais e limites dessas verificações.
 
 A versão 0.5 anterior teve 42 testes Windows e 37 testes web aprovados, schema básico aplicado e isolamento RLS/RPC verificado em transações revertidas. Login e persistência pela interface publicada confirmaram sessão após recarga, criação/edição/restauração de nota e tarefa concluída. O deployment do commit `3ad639c` ficou `READY` e [os dois jobs de CI passaram](https://github.com/Henrique1601/jarvis/actions/runs/38058458715). Esses resultados são históricos e não comprovam a entrega da fila 0.6. O [registro completo](cloud/README.md) preserva as evidências anteriores.
 

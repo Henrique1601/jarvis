@@ -16,6 +16,17 @@ h1,.brand{font-family:'Bahnschrift','Trebuchet MS',sans-serif}
 .history-row button{color:var(--accent);font-size:11px}
 .message-sources{margin-top:12px;font-size:11px;color:var(--muted);white-space:normal}
 .message-sources button{display:block;text-align:left;color:var(--accent);margin-top:5px;font-weight:400}
+.message-content{white-space:normal;line-height:1.75;min-width:0}
+.message-content p{margin:0 0 12px;white-space:pre-line}
+.message-content>:last-child{margin-bottom:0}
+.message-content h3,.message-content h4,.message-content h5,.message-content h6{font-size:15px;line-height:1.45;margin:18px 0 10px;font-weight:600;letter-spacing:0}
+.message-content h3{font-size:18px;color:var(--accent)}
+.message-content>:first-child{margin-top:0}
+.message-content ul,.message-content ol{margin:8px 0 14px;padding-left:24px}
+.message-content li{padding-left:3px;margin:6px 0}
+.message-content code{font:12px/1.7 Consolas,'Courier New',monospace;background:#090e12;border:1px solid var(--line);border-radius:4px;padding:1px 4px}
+.message-content pre{max-width:100%;overflow-x:auto;white-space:pre;overflow-wrap:normal;background:#090e12;border:1px solid var(--line);border-radius:7px;padding:12px 14px;margin:12px 0 16px;tab-size:2}
+.message-content pre code{display:block;padding:0;background:transparent;border:0;border-radius:0;white-space:pre}
 @media(max-width:500px){.diagnostic-row,.history-row{gap:8px;flex-wrap:wrap}.history-row button{border:1px solid var(--line)}}
 
 .migration-status{margin:0;padding:12px 24px;text-align:center;color:var(--muted);border-bottom:1px solid var(--line);font-size:13px}
