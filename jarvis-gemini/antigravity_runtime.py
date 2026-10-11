@@ -201,6 +201,22 @@ def _initial_error(event, diagnostics):
                        'O Antigravity não confirmou o agente Jarvis sem ferramentas. Nenhum pedido foi enviado.')
 
 
+def _verify_text_step(event):
+    step = event.get('step_update')
+    if not isinstance(step, dict):
+        raise RuntimeError('O Antigravity retornou um evento fora do formato esperado.')
+    if step.get('step_type') == 'tool' or any(
+        step.get(field) not in (None, '', {}, [])
+        for field in ('tool_name', 'tool_info', 'subagent_info')
+    ):
+        # The prompt has already been sent. This detects a broken no-tools
+        # contract; it cannot prove that the announced action never executed.
+        raise PolicyBlockedError('O Antigravity informou uma ação de ferramenta incompatível com o perfil de conversa. '
+                                 'A sessão foi interrompida e a resposta descartada.', AGENT_NAME)
+    if step.get('step_type') not in ('user_input', 'agent_response', 'checkpoint'):
+        raise RuntimeError('O Antigravity retornou um evento fora do formato esperado.')
+
+
 def probe(app_root, workspace, timeout=20):
     """Read and verify init only; never write a user event or perform a turn."""
     return ask(app_root, workspace, None, timeout, _probe=True)
@@ -349,6 +365,7 @@ def ask(app_root, workspace, prompt, timeout=180, *, before_send=None, cancel_ev
             if event['event'] != 'result':
                 if event['event'] != 'step_update':
                     raise RuntimeError('O Antigravity retornou um evento fora do formato esperado.')
+                _verify_text_step(event)
                 continue
             result = event.get('result')
             if not isinstance(result, dict) or result.get('status') != 'SUCCESS' or result.get('error'):
@@ -367,6 +384,7 @@ def ask(app_root, workspace, prompt, timeout=180, *, before_send=None, cancel_ev
                 break
             if trailing['event'] != 'step_update':
                 raise RuntimeError('O Antigravity retornou resultados adicionais inesperados.')
+            _verify_text_step(trailing)
         while True:
             try:
                 exit_code = proc.wait(timeout=min(remaining(), 0.2))

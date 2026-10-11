@@ -9,7 +9,7 @@ Atualização: 10 de outubro de 2026. Plataforma: Windows 11.
 | Versão oficial atual | Manifest Windows `windows_amd64` consultado no instalador oficial: Antigravity 1.3.3 |
 | Download privado | SHA-512 conferido; versão anterior preservada; sem alterar PATH, aliases ou configurações globais |
 | Probe real 1.3.3 | `init.agent = jarvis-chat`, `tool_count = 60`, `prompt_sent = false`, `before_send_called = false`; gate manteve a recusa |
-| Transporte e worker | 17 testes de transporte e 18 do worker com processos/modelo/HTTPS simulados; incluem prova DPAPI real com dados sintéticos e mutex Windows exclusivo |
+| Transporte e worker | 20 testes de transporte e 18 do worker com processos/modelo/HTTPS simulados; incluem prova DPAPI real com dados sintéticos e mutex Windows exclusivo |
 | Proteções verificadas | Probe antes de claim; START confirmado antes do stdin; replay de START recusado; cancelamento e Job Object; ambiente da CLI sem credenciais do worker; redirects recusados |
 | Recuperação | Resultado criptografado com DPAPI antes da publicação; retry somente da conclusão com a mesma resposta; tentativa expirada/incerta preservada para revisão, sem regeneração automática |
 | Conta e ativação reais | Nenhuma credencial de usuário inserida nesta etapa; nenhum pedido real processado, tarefa agendada ou autostart instalado |
@@ -21,6 +21,8 @@ Dados do worker: `%LOCALAPPDATA%/JarvisGemini/worker`, fora do repositório e do
 O worker foi preparado para polling de 10s, heartbeat de 30s, geração de até 180s e renovação de lease de 240s. Estes contratos ainda precisam de validação autenticada ponta a ponta com o backend da fila. A CLI 1.3.3 continua bloqueada: encontrar o binário, fazer login ou instalar a fila não comprova controle de ferramentas. Gates administrativos online devem continuar desativados. A assinatura Antigravity possui cotas; esta implementação não promete acesso ilimitado nem usa fallback pago silencioso.
 
 Workspaces temporários contêm o perfil protegido. A CLI pode manter transcrições globais; remover o workspace não garante apagar esses registros. Resultados de tentativas rejeitadas/expiradas permanecem em um outbox DPAPI terminal para revisão e interrompem novos claims até resolução explícita.
+
+A investigação adicional e a contraprova com agente inexistente estão em [DIAGNOSTICO-ANTIGRAVITY.md](DIAGNOSTICO-ANTIGRAVITY.md). O nome em `init.agent` sozinho não comprova que o perfil foi carregado. A suíte Windows completa passou em 68 testes. O transporte também descarta respostas quando há eventos de ferramenta ou etapas inválidas, inclusive após sucesso; essa proteção posterior não comprova que uma ação nunca ocorreu. O gate anterior ao envio permanece obrigatório e o processamento continua desativado.
 
 Os registros 0.4.0 e anteriores abaixo são históricos e não validam o novo worker ou a entrega online.
 

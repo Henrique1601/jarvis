@@ -43,6 +43,8 @@ Para interromper processamento, desativar os controles de execução e pausar ou
 
 ## Evidências desta entrega
 
+A investigação posterior da CLI e a proteção contra eventos de ferramenta estão em [DIAGNOSTICO-ANTIGRAVITY.md](../jarvis-gemini/DIAGNOSTICO-ANTIGRAVITY.md). A suíte Windows passou em 68 testes após essa proteção adicional. O processamento permanece desativado; o nome retornado pela CLI não comprova que o perfil foi carregado.
+
 Em 10/10/2026, a migração aditiva `jarvis_cloud_v2_antigravity_queue` foi aplicada com execução desativada. `supabase/verify-queue.sql` passou no Postgres real com usuários sintéticos e rollback: isolamento, FIFO, idempotência, quotas, cancelamento, expiração, reservas, revogação, conclusão atômica e bloqueio durante execução. Os registros anteriores permaneceram: uma nota, uma tarefa, duas versões de histórico e nenhuma mensagem. Nenhum usuário sintético permaneceu no banco.
 
 A suíte Windows completa passou em 65 testes, incluindo DPAPI e mutex reais com dados sintéticos. A verificação real do CLI 1.3.3 anunciou 60 ferramentas; nenhum prompt foi transmitido. Uma resposta autenticada e retomada real após reinício continuam impedidas por esse resultado, sem substituir a prova por testes simulados.

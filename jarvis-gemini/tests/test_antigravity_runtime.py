@@ -67,6 +67,24 @@ if mode == 'stderr':
     sys.stderr.write('internal-secret-log' * 15000)
     sys.stderr.flush()
 emit({'event': 'step_update', 'step_update': {'state': 'DONE', 'step_type': 'user_input'}})
+contradictory_steps = {
+    'tool_event': {'state': 'DONE', 'step_type': 'tool'},
+    'tool_name_only': {'state': 'ACTIVE', 'step_type': 'agent_response', 'tool_name': 'private-tool-detail'},
+    'tool_info_only': {'step_type': 'agent_response', 'tool_info': {'output': 'private-tool-detail'}},
+    'subagent_info_only': {'step_type': 'agent_response', 'subagent_info': {'task': 'private-tool-detail'}},
+}
+if mode in contradictory_steps:
+    emit({'event': 'step_update', 'step_update': contradictory_steps[mode]})
+invalid_steps = {'invalid_step_array': [], 'invalid_step_null': None, 'missing_step_type': {'state': 'DONE'},
+                 'unknown_step_type': {'step_type': 'private-unknown-step'}}
+if mode in invalid_steps:
+    emit({'event': 'step_update', 'step_update': invalid_steps[mode]})
+if mode == 'safe_steps':
+    for kind in ('agent_response', 'checkpoint'):
+        emit({'event': 'step_update', 'step_update': {'state': 'DONE', 'step_type': kind}})
+    for empty in (None, '', {}, []):
+        emit({'event': 'step_update', 'step_update': {'step_type': 'agent_response',
+              'tool_name': empty, 'tool_info': empty, 'subagent_info': empty}})
 result = {'status': 'ERROR' if mode in ('failed', 'quota') else 'SUCCESS',
           'response': ' ' if mode == 'empty' else 'Olá Henrique'}
 if mode == 'failed':
@@ -76,6 +94,15 @@ if mode == 'quota':
 if mode == 'missing_status':
     del result['status']
 emit({'event': 'result', 'result': result})
+if mode == 'trailing_tool_event':
+    emit({'event': 'step_update', 'step_update': {'state': 'DONE', 'step_type': 'tool', 'tool_name': 'private-tool-detail'}})
+if mode in ('trailing_tool_info', 'trailing_subagent_info'):
+    kind = 'tool_info' if mode == 'trailing_tool_info' else 'subagent_info'
+    emit({'event': 'step_update', 'step_update': {'step_type': 'checkpoint', kind: {'content': 'private-tool-detail'}}})
+if mode == 'trailing_invalid_step':
+    emit({'event': 'step_update', 'step_update': {'step_type': 'private-unknown-step'}})
+if mode == 'safe_steps':
+    emit({'event': 'step_update', 'step_update': {'step_type': 'checkpoint', 'state': 'DONE'}})
 if mode == 'duplicate_result':
     emit({'event': 'result', 'result': result})
 if mode == 'timeout_exit':
@@ -117,6 +144,31 @@ class RuntimeTests(unittest.TestCase):
         result, _ = self.call('success', None, _probe=True)
         self.assertEqual(result, {'agent': 'jarvis-chat', 'tools': [], 'verified': True})
         self.assertFalse(self.receipt.exists())
+
+    def test_tool_steps_contradict_empty_init_and_discard_even_a_successful_result(self):
+        for mode in ('tool_event', 'tool_name_only', 'tool_info_only', 'subagent_info_only',
+                     'trailing_tool_event', 'trailing_tool_info', 'trailing_subagent_info'):
+            with self.subTest(mode=mode):
+                self.receipt.unlink(missing_ok=True)
+                with self.assertRaises(runtime.PolicyBlockedError) as error:
+                    self.call(mode, 'SYNTHETIC-PROMPT-ALREADY-SENT')
+                self.assertIn('ferramenta', str(error.exception))
+                self.assertNotIn('private-tool-detail', str(error.exception))
+                self.assertNotIn('antes de enviar', str(error.exception))
+                # This is post-send protocol detection, not proof that the CLI
+                # was prevented from executing a tool or receiving a prompt.
+                self.assertIn('SYNTHETIC-PROMPT-ALREADY-SENT', self.receipt.read_text(encoding='utf-8'))
+
+    def test_malformed_or_unknown_steps_fail_closed_without_echoing_payload(self):
+        for mode in ('invalid_step_array', 'invalid_step_null', 'missing_step_type', 'unknown_step_type', 'trailing_invalid_step'):
+            with self.subTest(mode=mode):
+                with self.assertRaisesRegex(RuntimeError, 'formato') as error:
+                    self.call(mode)
+                self.assertNotIn('private-unknown-step', str(error.exception))
+
+    def test_known_text_step_types_remain_accepted_before_and_after_result(self):
+        response, _ = self.call('safe_steps')
+        self.assertEqual(response, 'Olá Henrique')
 
     def test_start_callback_failure_never_sends_prompt(self):
         def rejected():
