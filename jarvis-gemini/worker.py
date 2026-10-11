@@ -273,10 +273,32 @@ def startup_check(root, vault, client, engine=runtime):
     return True
 
 
+def setup_request(requester, stage, url, payload=None, headers=None):
+    """Identify the failing setup phase without printing provider output/secrets."""
+    labels = {'config': 'consultar a configuração do site', 'login': 'entrar na conta Jarvis',
+              'register': 'registrar o dispositivo Windows'}
+    if stage not in labels:
+        raise ValueError('Invalid setup stage')
+    try:
+        return requester(url, payload, headers)
+    except WorkerError as error:
+        status = f' (HTTP {error.status})' if isinstance(error.status, int) and 100 <= error.status <= 599 else ''
+        if stage == 'login' and error.status in (400, 401):
+            raise WorkerError('auth_required', 'O login da conta Jarvis foi recusado' + status
+                + '. Use o e-mail confirmado e a senha criada no Jarvis, não a senha Google. Não envie a senha no chat.', error.status) from None
+        if error.status == 429:
+            advice = ' Aguarde antes de tentar novamente; há um limite de tentativas.'
+        elif stage == 'register':
+            advice = ' O login já respondeu; verifique a autorização da conta e a disponibilidade do site.'
+        else:
+            advice = ' Verifique a conexão e tente novamente pelo menu.'
+        raise WorkerError(error.code, 'Falha ao ' + labels[stage] + status + '.' + advice, error.status) from None
+
+
 def setup(vault, requester=request_json):
     if vault.read('outbox'):
         raise WorkerError('result_uncertain', 'Existe um resultado pendente. Recupere-o antes de trocar o dispositivo.')
-    config = requester(ORIGIN + '/api/config')
+    config = setup_request(requester, 'config', ORIGIN + '/api/config')
     if config.get('configured') is not True:
         raise WorkerError('connection_error', 'O Jarvis online ainda não está configurado.')
     url = config.get('supabaseUrl', '')
@@ -285,12 +307,12 @@ def setup(vault, requester=request_json):
     email = input('Email confirmado da sua conta Jarvis: ').strip()
     password = getpass.getpass('Senha Supabase (não será exibida nem salva): ')
     try:
-        session = requester(url + '/auth/v1/token?grant_type=password', {'email': email, 'password': password}, {'apikey': key})
+        session = setup_request(requester, 'login', url + '/auth/v1/token?grant_type=password', {'email': email, 'password': password}, {'apikey': key})
     finally:
         password = None
     credentials = {'origin': ORIGIN, 'supabaseUrl': url, 'publicKey': key}
     store_session(credentials, session)
-    device = requester(ORIGIN + '/api/worker-register', {}, {'Authorization': 'Bearer ' + credentials['accessToken']})
+    device = setup_request(requester, 'register', ORIGIN + '/api/worker-register', {}, {'Authorization': 'Bearer ' + credentials['accessToken']})
     identifier(device.get('deviceId'))
     try:
         token = device['deviceToken']
@@ -301,7 +323,10 @@ def setup(vault, requester=request_json):
     if not valid:
         raise WorkerError('connection_error', 'O dispositivo não foi confirmado pelo servidor.')
     credentials.update(deviceId=device['deviceId'], deviceToken=device['deviceToken'])
-    vault.write('credentials', credentials)
+    try:
+        vault.write('credentials', credentials)
+    except (WorkerError, OSError):
+        raise WorkerError('execution_failed', 'O dispositivo foi registrado, mas não foi possível salvar a conexão protegida no Windows. Verifique a permissão da pasta local do worker.') from None
     print('Conta e dispositivo protegidos pelo Windows. Nenhum login Google foi copiado.')
     print('O worker só iniciará pedidos após verificar o protocolo do CLI e o gate online. Ferramentas seguem as permissões do Antigravity.')
 

@@ -94,6 +94,47 @@ class WorkerTests(unittest.TestCase):
         with self.assertRaises(worker.WorkerError):
             self.vault.write('outbox', {'answer': 'x' * worker.MAX_RESPONSE_BYTES})
 
+    def test_setup_errors_identify_phase_without_echoing_provider_or_credentials(self):
+        for stage, status, expected in [('config', 503, 'configuração do site'),
+            ('login', 400, 'login da conta Jarvis'), ('login', 401, 'login da conta Jarvis'),
+            ('login', 429, 'limite de tentativas'), ('register', 403, 'registrar o dispositivo'),
+            ('register', 503, 'registrar o dispositivo'), ('config', None, 'configuração do site')]:
+            with self.subTest(stage=stage, status=status):
+                def failed(*args, **kwargs):
+                    raise worker.WorkerError('connection_error', 'PRIVATE_PROVIDER_TOKEN_AND_PASSWORD', status)
+                with self.assertRaises(worker.WorkerError) as error:
+                    worker.setup_request(failed, stage, 'https://example.test', {'password': 'PRIVATE_PASSWORD'})
+                self.assertIn(expected, str(error.exception))
+                self.assertNotIn('PRIVATE', str(error.exception))
+                self.assertEqual(error.exception.status, status)
+                if status in (400, 401):
+                    self.assertEqual(error.exception.code, 'auth_required')
+        with self.assertRaises(ValueError):
+            worker.setup_request(lambda *args: {}, 'PRIVATE_INVALID_STAGE', 'https://example.test')
+
+    def test_setup_registers_after_login_and_never_persists_password(self):
+        calls = []
+        def requester(url, payload=None, headers=None):
+            calls.append(url)
+            if url.endswith('/api/config'):
+                return {'configured': True, 'supabaseUrl': 'https://project.supabase.co', 'supabaseAnonKey': 'sb_publishable_test'}
+            if '/auth/v1/token?' in url:
+                self.assertEqual(payload['password'], 'SYNTHETIC_PASSWORD')
+                return {'access_token': 'fake-access', 'refresh_token': 'fake-refresh', 'expires_in': 3600}
+            self.assertEqual(headers['Authorization'], 'Bearer fake-access')
+            return {'deviceId': DEVICE, 'deviceToken': 'A' * 43}
+        with patch('builtins.input', return_value='synthetic@example.test'), patch.object(worker.getpass, 'getpass', return_value='SYNTHETIC_PASSWORD'), patch('builtins.print'):
+            worker.setup(self.vault, requester)
+        self.assertEqual(len(calls), 3)
+        credentials = self.vault.read('credentials')
+        self.assertEqual(credentials['deviceId'], DEVICE)
+        self.assertNotIn('password', credentials)
+        self.assertNotIn('SYNTHETIC_PASSWORD', json.dumps(credentials))
+        with patch.object(self.vault, 'write', side_effect=OSError('PRIVATE_LOCAL_PATH')), patch('builtins.input', return_value='synthetic@example.test'), patch.object(worker.getpass, 'getpass', return_value='SYNTHETIC_PASSWORD'):
+            with self.assertRaisesRegex(worker.WorkerError, 'salvar a conexão protegida') as error:
+                worker.setup(self.vault, requester)
+            self.assertNotIn('PRIVATE_LOCAL_PATH', str(error.exception))
+
     @unittest.skipUnless(os.name == 'nt', 'Windows DPAPI')
     def test_real_dpapi_roundtrip_under_current_windows_user(self):
         data = b'fake session only - no actual credential'

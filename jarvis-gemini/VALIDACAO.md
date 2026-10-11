@@ -2,6 +2,10 @@
 
 Atualização: 10 de outubro de 2026. Plataforma: Windows 11.
 
+## Diagnóstico da conexão do worker — 11 de outubro de 2026
+
+A configuração pública, URL e formato da chave pública, o transporte HTTPS usado pelo worker e a proteção DPAPI passaram em verificação real com dados sintéticos. O endpoint público confirmou Antigravity habilitado e Windows offline. O console agora identifica falhas ao consultar configuração, entrar na conta Jarvis, registrar o dispositivo e salvar a conexão protegida, incluindo o status HTTP quando disponível. Não exibe resposta privada do provedor nem senha ou tokens. Esses testes não comprovam o login do usuário: a mensagem da tentativa que falhou ainda precisa ser informada.
+
 ## Política atual — ferramentas do CLI autorizadas pelo proprietário
 
 Resposta direta autenticada real aprovada: pedido sintético solicitando somente “Conexão Antigravity OK.”, em workspace temporário, sem inclusão de notas ou tarefas. O teste concluiu com essa resposta. A fila autenticada e a retomada após reinício ainda não foram validadas; nenhuma credencial Supabase do worker foi configurada nesta etapa.
