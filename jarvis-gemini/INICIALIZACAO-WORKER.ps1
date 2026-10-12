@@ -1,7 +1,18 @@
-param([ValidateSet('Install', 'Disable')][string]$Action = 'Install')
+param([ValidateSet('Install', 'Disable', 'Status')][string]$Action = 'Install')
 $ErrorActionPreference = 'Stop'
 $jarvisTaskName = 'JarvisWorker'
 $jarvisUser = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+if ($Action -eq 'Status') {
+    $jarvisExisting = Get-ScheduledTask -TaskName $jarvisTaskName -ErrorAction SilentlyContinue
+    if ($jarvisExisting) {
+        Write-Host "Tarefa registrada: Sim"
+        Write-Host "Estado: $($jarvisExisting.State)"
+        Write-Host "Usuario: $($jarvisExisting.Principal.UserId)"
+    } else {
+        Write-Host "Tarefa registrada: Nao instalada"
+    }
+    exit 0
+}
 if ($Action -eq 'Disable') {
     $jarvisExisting = Get-ScheduledTask -TaskName $jarvisTaskName -ErrorAction SilentlyContinue
     if ($jarvisExisting) {

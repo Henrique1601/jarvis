@@ -495,6 +495,7 @@ class Worker:
                 raise WorkerError('execution_failed', 'A verificação do CLI falhou. Nenhum pedido foi buscado.') from None
         self.status, self.reason = 'ready', 'none'
         heartbeat_at = 0
+        consecutive_failures = 0
         while not self.stop.is_set():
             try:
                 preferences = self.vault.read('preferences') or {}
@@ -509,6 +510,7 @@ class Worker:
                 job = self.client.api('worker-claim', {})
                 if job.get('job') is not None or job.get('jobId'):
                     self.execute(job)
+                consecutive_failures = 0
             except WorkerError as error:
                 if error.code in ('policy_blocked', 'quota_exceeded'):
                     raise
@@ -516,8 +518,10 @@ class Worker:
                 self.reason = 'revoked' if error.code == 'device_revoked' else 'login_required' if error.code == 'auth_required' else 'quota_exceeded' if error.code == 'quota_exceeded' else 'connection_error'
                 if error.status in (400, 401, 403, 404, 409, 413) or error.code == 'result_uncertain':
                     raise
+                consecutive_failures += 1
                 # Outbox blocks the next claim until completion/failure succeeds.
-            self.stop.wait(POLL_SECONDS)
+            wait_time = min(POLL_SECONDS * (1 + consecutive_failures // 2), 60) if consecutive_failures > 0 else POLL_SECONDS
+            self.stop.wait(wait_time)
         self.status, self.reason = 'offline', 'offline'
         try:
             self.heartbeat()
@@ -525,9 +529,29 @@ class Worker:
             pass
 
 
+def diagnostics(root, vault):
+    results = {}
+    try:
+        dpapi(b'check')
+        results['dpapi'] = 'OK (protegido por DPAPI)'
+    except Exception:
+        results['dpapi'] = 'Falha (DPAPI indisponível)'
+    creds = vault.read('credentials')
+    results['credentials'] = 'Configurado' if creds else 'Não configurado'
+    if creds and 'deviceId' in creds:
+        results['deviceId'] = creds['deviceId'][:8] + '...'
+    prefs = vault.read('preferences') or {}
+    results['paused'] = bool(prefs.get('paused'))
+    outbox = vault.read('outbox')
+    results['outbox'] = f"Pendente ({outbox.get('stage')})" if outbox else 'Limpo'
+    cli_exe = root / '.tools' / 'antigravity' / 'agy.exe'
+    results['cli_present'] = cli_exe.exists()
+    return results
+
+
 def main():
     parser = argparse.ArgumentParser(description='Worker Windows Jarvis — somente conexões HTTPS de saída.')
-    parser.add_argument('action', choices=('run', 'setup', 'pause', 'resume', 'disconnect', 'status', 'probe', 'startup-check'), nargs='?', default='run')
+    parser.add_argument('action', choices=('run', 'setup', 'pause', 'resume', 'disconnect', 'status', 'probe', 'startup-check', 'diagnostics'), nargs='?', default='run')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
     data = Path(os.environ.get('LOCALAPPDATA', str(Path.home() / 'AppData/Local'))) / 'JarvisGemini' / 'worker'
@@ -551,10 +575,28 @@ def main():
             elif args.action in ('pause', 'resume'):
                 vault.write('preferences', {'paused': args.action == 'pause'})
                 print('Preferência salva. Use INICIAR-WORKER para retomar após a verificação de segurança.')
+            elif args.action == 'diagnostics':
+                diag = diagnostics(root, vault)
+                print('=== Diagnóstico do Worker Jarvis ===')
+                print('Windows DPAPI:', diag['dpapi'])
+                print('Credenciais:', diag['credentials'])
+                if 'deviceId' in diag:
+                    print('Dispositivo:', diag['deviceId'])
+                print('Estado de pausa:', 'Pausado' if diag['paused'] else 'Ativo')
+                print('Fila local (outbox):', diag['outbox'])
+                print('Antigravity CLI local:', 'Presente' if diag['cli_present'] else 'Não encontrado')
+                print('====================================')
             elif args.action == 'status':
-                print('Configurado:', bool(vault.read('credentials')))
-                print('Pausado:', bool((vault.read('preferences') or {}).get('paused')))
-                print('Conclusão pendente:', bool(vault.read('outbox')))
+                creds = vault.read('credentials')
+                prefs = vault.read('preferences') or {}
+                outbox = vault.read('outbox')
+                print('Configurado:', bool(creds))
+                if creds and 'deviceId' in creds:
+                    print('Dispositivo:', creds['deviceId'][:8] + '...')
+                print('Pausado:', bool(prefs.get('paused')))
+                print('Conclusão pendente:', bool(outbox))
+                if outbox:
+                    print('Estágio pendente:', outbox.get('stage', 'desconhecido'))
                 print('Ferramentas e login só são confirmados pelo probe; configuração não equivale a disponibilidade.')
             elif args.action == 'disconnect':
                 vault.write('preferences', {'paused': True})

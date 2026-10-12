@@ -1,5 +1,14 @@
 # Verificação do Jarvis
 
+## Robustecimento do worker Windows e ciclo de vida — 12 de outubro de 2026
+
+Adicionado backoff adaptativo no loop de polling do worker (`worker.py`), aumentando dinamicamente o intervalo em falhas de rede consecutivas (até teto de 60 s) e restabelecendo 10 s imediatamente na primeira comunicação bem-sucedida, poupando CPU e tráfego durante suspensão ou instabilidade de rede.
+Implementada ação `diagnostics` em `worker.py` para inspeção rápida de integridade: validação DPAPI de usuário, estado do cofre (credenciais, preferências e outbox terminal/ativo), presença do binário Antigravity CLI e verificação não destrutiva da conectividade, sem expor tokens ou segredos em stdout.
+
+O script `INICIALIZACAO-WORKER.ps1` recebeu a ação `Status` para consultar o registro da Tarefa Agendada no Windows (`Get-ScheduledTask -TaskName JarvisWorker`), e `CONFIGURAR-WORKER.bat` incorporou a opção de consulta direta (opção 9). A execução real na máquina confirmou a tarefa registrada no estado `Ready` para o usuário interativo `henri`, com DPAPI OK, dispositivo registrado e outbox limpo.
+
+Passaram 107 testes Windows no `jarvis-gemini` (incluindo dois novos testes de backoff e diagnósticos em `tests/test_worker.py`) e 91 testes Cloud Node.js.
+
 ## RAG semântico local e busca híbrida no cofre — 12 de outubro de 2026
 
 Implementado motor de RAG semântico leve e local em `semantic_rag.py`, sem dependências externas obrigatórias (compatível com Python 3.11+ puro).

@@ -344,9 +344,48 @@ class WorkerTests(unittest.TestCase):
         self.assertIn('-Execute $jarvisPythonW', script)
         self.assertIn('[IO.Path]::IsPathRooted($jarvisPython)', script)
         self.assertIn('Unregister-ScheduledTask', script)
+        self.assertIn("'Status'", script)
         self.assertNotIn('Start-ScheduledTask', script)
         self.assertNotIn('-Password', script)
         self.assertNotIn('-RunLevel Highest', script)
+
+    def test_diagnostics_returns_safe_state_without_secrets(self):
+        self.vault.write('credentials', {'deviceId': DEVICE, 'accessToken': 'secret-token-value', 'deviceToken': 'secret-dev'})
+        self.vault.write('preferences', {'paused': True})
+        self.vault.write('outbox', {'stage': 'answered', 'jobId': ID})
+        diag = worker.diagnostics(self.root, self.vault)
+        self.assertEqual(diag['credentials'], 'Configurado')
+        self.assertEqual(diag['deviceId'], DEVICE[:8] + '...')
+        self.assertTrue(diag['paused'])
+        self.assertEqual(diag['outbox'], 'Pendente (answered)')
+        self.assertNotIn('secret-token-value', json.dumps(diag))
+
+    def test_backoff_on_transient_connection_errors(self):
+        waits = []
+        claims = 0
+
+        def fake_wait(seconds):
+            waits.append(seconds)
+            if len(waits) >= 4:
+                self.service.stop.set()
+            return self.service.stop.is_set()
+
+        def failing_claim(_):
+            nonlocal claims
+            claims += 1
+            if claims <= 3:
+                raise worker.WorkerError('connection_error', 'network unreachable')
+            return {'job': None}
+
+        self.client.callbacks['worker-claim'] = failing_claim
+        with patch.object(self.service.stop, 'wait', side_effect=fake_wait):
+            self.service.run()
+
+        # First 3 failures increase or sustain wait time, 4th succeeds and resets to POLL_SECONDS
+        self.assertEqual(len(waits), 4)
+        self.assertGreaterEqual(waits[1], worker.POLL_SECONDS)
+        self.assertGreater(waits[2], worker.POLL_SECONDS)
+        self.assertEqual(waits[3], worker.POLL_SECONDS)
 
 
 if __name__ == '__main__':
