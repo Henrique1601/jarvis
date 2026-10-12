@@ -14,6 +14,12 @@ Confira se o e-mail foi confirmado e autorizado no servidor e no banco. Uma sess
 
 Confirme que o PC está ligado, que o componente não está pausado e que a conta foi conectada. Abra CONFIGURAR-WORKER.bat, confira o estado e retome uma única instância. Aguarde a atualização de presença. O pedido continua na fila até o prazo indicado.
 
+## Microfone local retorna erro e chat perde conexão
+
+Na versão local, o erro de transcrição reproduzido em 11/10/2026 era incompatibilidade do faster-whisper 1.2.1 com PyAV 19. A correção usa PyAV abaixo de 19. Execute INSTALAR-VOZ.bat atualizado, reinicie pelo INICIAR.bat desta pasta e recarregue o painel. Não use somente `py server.py` se a voz foi instalada no `.venv`.
+
+“Conexão recusada” significa que não há servidor respondendo naquele endereço. Mantenha a janela do INICIAR.bat aberta. Se ela informar que o servidor encerrou, confira a mensagem e o código de saída antes de abrir novamente. Depois de reiniciar, recarregue o navegador para obter a nova sessão local. A transcrição por silêncio sintético passou; confirme também uma gravação real pelo microfone.
+
 ## Recuperação de senha falhou
 
 Use a recuperação no site e conclua a nova senha pelo link recebido. Confira a URL de retorno configurada no Supabase se o link voltar a uma página errada. Não envie o link de recuperação ou códigos ao agente.

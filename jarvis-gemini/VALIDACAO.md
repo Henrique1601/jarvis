@@ -1,5 +1,13 @@
 # Verificação do Jarvis
 
+## Correção da voz local e conexão — 11 de outubro de 2026
+
+Reproduzida a falha de decodificação: faster-whisper 1.2.1 chama `av.open` com `metadata_errors`, removido pelo PyAV 19.0.1 instalado. A instalação local foi corrigida para PyAV 18.1.0 e `requirements-voice.txt` restringe `av>=11,<19`. O modelo base já estava em cache; o teste não baixou outro modelo nem utilizou áudio pessoal. WAV sintético passou pelo endpoint real com HTTP 200, e o health-check continuou 200 depois da transcrição. Isso valida decodificação e execução com silêncio sintético, não reconhecimento de fala pelo microfone real.
+
+O servidor estava ausente na porta 8765 na primeira consulta. Uma instância posterior iniciada com Python global não encontrou bibliotecas de voz; a instância no `.venv` validado respondeu corretamente após reinicialização sem pedidos ativos, preservando a mesma pasta de dados. A falha de decodificação foi tratável e não demonstrou, sozinha, a causa de o servidor original ter parado.
+
+Áudio inválido/incompleto agora recebe 400 antes de carregar bibliotecas. Falhas de importação, modelo e decodificação recebem 503 com orientação, sem expor detalhes privados; testes confirmam continuidade de estado e chat e limpeza dos temporários. O painel explica falhas de conexão local sem reenviar pedidos. `INICIAR.bat` prioriza o executável absoluto do `.venv`, informa que fechar sua janela encerra o servidor e mostra o código de saída. Passaram 100 testes Windows, 91 online e build.
+
 ## Organização 0.7 e segundo cérebro — 11 de outubro de 2026
 
 Implementadas as oito melhorias: conversas por assunto, cópia de código/respostas, tarefas com prazo/prioridade/projeto, notas com etiquetas/pastas/prévia, painel Windows, contexto selecionável, PWA/rascunhos e sincronização manual de notas escolhidas. A sincronização conserva versões e backups, recusa conflitos sem resolução explícita e trata a revisão remota como identificador opaco. O contexto da IA continua separado do cofre local.

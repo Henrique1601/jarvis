@@ -35,6 +35,10 @@ class ConflictError(ValueError):
     pass
 
 
+class VoiceError(RuntimeError):
+    pass
+
+
 def atomic_text(path, text):
     temp = path.with_name('.' + path.name + '-' + uuid.uuid4().hex + '.tmp')
     try:
@@ -405,23 +409,43 @@ def diagnostics(store):
     return result
 
 
+def validate_wav(data):
+    try:
+        with wave.open(io.BytesIO(data), 'rb') as audio:
+            rate = audio.getframerate()
+            frames = audio.getnframes()
+            if audio.getnchannels() != 1 or audio.getsampwidth() != 2 or audio.getcomptype() != 'NONE' or not 8000 <= rate <= 96000 or frames <= 0 or frames / rate > 60:
+                raise ValueError('Envie áudio WAV mono PCM de 16 bits, com duração entre 0 e 60 segundos.')
+            if len(audio.readframes(frames)) != frames * 2:
+                raise ValueError('O áudio WAV está incompleto. Grave novamente.')
+    except (wave.Error, EOFError, ZeroDivisionError) as error:
+        raise ValueError('O áudio não é um WAV válido. Grave novamente pelo microfone do Jarvis.') from None
+
+
 def transcribe(data):
     global MODEL
+    validate_wav(data)
     if importlib.util.find_spec('faster_whisper') is None:
-        raise RuntimeError('Voz local não instalada. Execute INSTALAR-VOZ.bat e reinicie o Jarvis.')
-    with wave.open(io.BytesIO(data), 'rb') as audio:
-        if audio.getnchannels() != 1 or audio.getsampwidth() != 2 or audio.getframerate() > 96000 or audio.getnframes() / audio.getframerate() > 60:
-            raise ValueError('Envie áudio WAV mono de até 60 segundos.')
+        raise VoiceError('Voz local não instalada. Execute INSTALAR-VOZ.bat e reinicie o Jarvis.')
     with VOICE_LOCK:
-        from faster_whisper import WhisperModel
+        try:
+            from faster_whisper import WhisperModel
+        except Exception:
+            raise VoiceError('Não foi possível carregar as bibliotecas de voz. Execute INSTALAR-VOZ.bat e reinicie o Jarvis.') from None
         if MODEL is None:
-            MODEL = WhisperModel('base', device='cpu', compute_type='int8')
+            try:
+                MODEL = WhisperModel('base', device='cpu', compute_type='int8')
+            except Exception:
+                raise VoiceError('Não foi possível carregar o modelo Whisper base. Confira a conexão para o primeiro download e execute INSTALAR-VOZ.bat se necessário.') from None
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp:
             temp.write(data)
             name = temp.name
         try:
-            segments, _ = MODEL.transcribe(name, language='pt', vad_filter=True)
-            return ' '.join(segment.text.strip() for segment in segments).strip()
+            try:
+                segments, _ = MODEL.transcribe(name, language='pt', vad_filter=True)
+                return ' '.join(segment.text.strip() for segment in segments).strip()
+            except Exception:
+                raise VoiceError('A transcrição falhou ao decodificar ou processar o áudio. Execute INSTALAR-VOZ.bat para corrigir as bibliotecas de voz e reinicie o Jarvis.') from None
         finally:
             Path(name).unlink(missing_ok=True)
 
@@ -553,6 +577,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond({'error': 'Não encontrado.'}, 404)
         except ConflictError as error:
             self.respond({'error': str(error)}, 409)
+        except VoiceError as error:
+            self.respond({'error': str(error)}, 503)
         except (ValueError, RuntimeError, OSError, subprocess.SubprocessError) as error:
             self.respond({'error': str(error)}, 400)
         except Exception:
