@@ -21,6 +21,7 @@ import webbrowser
 import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import antigravity_runtime as antigravity
+import semantic_rag
 
 ASSETS = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
 DEFAULT_DATA = Path(os.environ.get('LOCALAPPDATA', str(Path.home()))) / 'JarvisGemini'
@@ -148,6 +149,7 @@ class Store:
         self.backup_root = self.root / 'backups'
         self.history_root.mkdir(exist_ok=True)
         self.backup_root.mkdir(exist_ok=True)
+        self.semantic_index = semantic_rag.SemanticIndex(self.root)
 
     def save(self):
         with LOCK:
@@ -241,7 +243,33 @@ class Store:
                 temp.unlink(missing_ok=True)
             return {'name': name, 'path': str(target), 'bytes': target.stat().st_size}
 
-    def notes(self, query='', excerpts=False):
+    def semantic_search(self, query='', excerpts=False, mode='hybrid', top_k=100):
+        with LOCK:
+            raw_notes = []
+            for path in sorted(self.vault.rglob('*.md')):
+                if path.is_symlink() or not path.resolve().is_relative_to(self.vault):
+                    continue
+                try:
+                    metadata = path.stat()
+                    if metadata.st_size > 800000:
+                        continue
+                    content = path.read_text(encoding='utf-8', errors='replace')
+                except OSError:
+                    continue
+                title = next((line.lstrip('# ').strip() for line in content.splitlines() if line.startswith('# ')), path.stem)
+                note_id = path.relative_to(self.vault).as_posix()
+                raw_notes.append({
+                    'id': note_id,
+                    'title': title,
+                    'content': content,
+                    'revision': revision(content),
+                    'modified': metadata.st_mtime
+                })
+            return self.semantic_index.search(raw_notes, query=query, excerpts=excerpts, mode=mode, top_k=top_k)
+
+    def notes(self, query='', excerpts=False, mode='lexical'):
+        if mode in ('hybrid', 'semantic'):
+            return self.semantic_search(query=query, excerpts=excerpts, mode=mode)
         terms = search_terms(query)
         result = []
         for path in sorted(self.vault.rglob('*.md')):
@@ -285,10 +313,13 @@ class Store:
             self.save()
             return msg
 
-    def prepare_context(self, text, notes=None):
+    def prepare_context(self, text, notes=None, mode='lexical'):
         """Prepare one immutable request and the exact set of notes sent to the AI."""
         clean_text(text)  # Validate without stripping or truncating the request.
-        notes = self.notes(text, excerpts=True)[:6] if notes is None else notes[:6]
+        if notes is None:
+            notes = self.notes(text, excerpts=True, mode=mode)[:6]
+        else:
+            notes = notes[:6]
         with LOCK:
             history = [dict(message) for message in self.state['messages'][-10:]]
             tasks = [dict(task) for task in self.state['tasks'][-50:]]
@@ -539,7 +570,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not AI_LOCK.acquire(blocking=False):
                     return self.respond({'error': 'O Jarvis já está respondendo. Aguarde.'}, 409)
                 try:
-                    context_notes = store.notes(text, excerpts=True)[:6]
+                    context_notes = store.semantic_search(text, excerpts=True, mode='hybrid')[:6]
                     prepared = store.prepare_context(text, context_notes)
                     response = ask_ai(store, text, context_notes, prepared_prompt=prepared['prompt'])
                     store.message('user', text)
@@ -552,7 +583,8 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == '/api/note':
                 return self.respond({'id': store.note(data.get('title'), data.get('content'), data.get('folder', 'raw'))}, 201)
             if self.path == '/api/search':
-                return self.respond({'notes': store.notes(data.get('query', ''))})
+                mode = data.get('mode', 'hybrid')
+                return self.respond({'notes': store.notes(data.get('query', ''), mode=mode)})
             if self.path == '/api/task':
                 with LOCK:
                     if data.get('id'):

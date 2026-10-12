@@ -1,5 +1,14 @@
 # Verificação do Jarvis
 
+## RAG semântico local e busca híbrida no cofre — 12 de outubro de 2026
+
+Implementado motor de RAG semântico leve e local em `semantic_rag.py`, sem dependências externas obrigatórias (compatível com Python 3.11+ puro).
+A indexação combina n-grams de subpalavras para variações morfológicas, expansão bidirecional de conceitos semânticos (sinônimos técnicos em português para voz, memória, tarefas, performance e IA), extração estruturada de metadados do Obsidian (tags YAML no frontmatter, tags inline `#tag`, cabeçalhos `#` e wikilinks `[[...]]`) e espaço vetorial com similaridade de cosseno.
+
+O `SemanticIndex` armazena atomicamente o índice em `semantic_index.json` utilizando o hash SHA-256 da revisão de cada nota, reindexando de forma incremental apenas arquivos novos ou alterados. A busca híbrida (`mode='hybrid'`) equilibra precisão léxica e recall semântico. A extração semântica de trechos preserva estritamente as coordenadas exatas de caracteres (`inicio`, `fim`) e linhas originais para auditoria e citação, inclusive após 20.000 caracteres.
+
+Passaram 105 testes Windows (incluindo 5 novos testes de RAG semântico em `tests/test_semantic_rag.py`) e 91 testes Cloud Node.js. JavaScript validado com `node --check`.
+
 ## Correção da voz local e conexão — 11 de outubro de 2026
 
 Reproduzida a falha de decodificação: faster-whisper 1.2.1 chama `av.open` com `metadata_errors`, removido pelo PyAV 19.0.1 instalado. A instalação local foi corrigida para PyAV 18.1.0 e `requirements-voice.txt` restringe `av>=11,<19`. O modelo base já estava em cache; o teste não baixou outro modelo nem utilizou áudio pessoal. WAV sintético passou pelo endpoint real com HTTP 200, e o health-check continuou 200 depois da transcrição. Isso valida decodificação e execução com silêncio sintético, não reconhecimento de fala pelo microfone real.
