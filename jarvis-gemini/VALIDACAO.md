@@ -1,5 +1,12 @@
 # Verificação do Jarvis
 
+## Modo janela desktop dedicada (App Mode) — 12 de outubro de 2026
+
+Implementado modo janela dedicada nativa (`--app-window`) em `server.py` e script de inicialização `INICIAR-APP.bat`, sem dependências externas pesadas de GUI.
+A função `find_app_browser()` detecta instalações locais do Microsoft Edge ou Google Chrome no Windows (`Program Files`, `Program Files (x86)`, `LOCALAPPDATA` e `PATH`), e `open_interface(url, app_window=True)` abre o painel em janela chromeless dedicada (`--app=http://127.0.0.1:8765 --window-size=1280,860`), com fallback seguro para `webbrowser.open()` caso nenhum navegador Chromium seja encontrado ou ocorra erro ao iniciar o processo.
+
+Passaram 108 testes Windows no `jarvis-gemini` (incluindo `test_open_interface_app_window_and_fallback` em `tests/test_server.py`) e 91 testes Cloud Node.js.
+
 ## Robustecimento do worker Windows e ciclo de vida — 12 de outubro de 2026
 
 Adicionado backoff adaptativo no loop de polling do worker (`worker.py`), aumentando dinamicamente o intervalo em falhas de rede consecutivas (até teto de 60 s) e restabelecendo 10 s imediatamente na primeira comunicação bem-sucedida, poupando CPU e tráfego durante suspensão ou instabilidade de rede.

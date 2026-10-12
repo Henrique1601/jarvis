@@ -617,11 +617,49 @@ class Handler(BaseHTTPRequestHandler):
             self.respond({'error': 'Falha interna. Confira a instalação e tente novamente.'}, 500)
 
 
+def find_app_browser():
+    """Locate Edge or Chrome on Windows for chromeless desktop app window mode."""
+    if os.name != 'nt':
+        return None
+    candidates = [
+        Path(os.environ.get('PROGRAMFILES(X86)', 'C:/Program Files (x86)')) / 'Microsoft/Edge/Application/msedge.exe',
+        Path(os.environ.get('PROGRAMFILES', 'C:/Program Files')) / 'Microsoft/Edge/Application/msedge.exe',
+        Path(os.environ.get('PROGRAMFILES', 'C:/Program Files')) / 'Google/Chrome/Application/chrome.exe',
+        Path(os.environ.get('PROGRAMFILES(X86)', 'C:/Program Files (x86)')) / 'Google/Chrome/Application/chrome.exe',
+        Path(os.environ.get('LOCALAPPDATA', '')) / 'Google/Chrome/Application/chrome.exe',
+        Path(os.environ.get('LOCALAPPDATA', '')) / 'Microsoft/Edge/Application/msedge.exe',
+    ]
+    for path in candidates:
+        if path.is_file():
+            return str(path)
+    return shutil.which('msedge') or shutil.which('chrome')
+
+
+def open_interface(url, app_window=False):
+    """Open Jarvis in a dedicated desktop app window or standard browser."""
+    if not isinstance(url, str) or not re.fullmatch(r'http://127\.0\.0\.1:\d+', url):
+        raise ValueError('URL local inválida.')
+    if app_window:
+        browser_exe = find_app_browser()
+        if browser_exe:
+            try:
+                subprocess.Popen(
+                    [browser_exe, f'--app={url}', '--window-size=1280,860'],
+                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+                )
+                return 'app_window'
+            except OSError:
+                pass
+    webbrowser.open(url)
+    return 'browser'
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-dir', type=Path, default=DEFAULT_DATA)
     parser.add_argument('--port', type=int, default=8765)
     parser.add_argument('--no-browser', action='store_true')
+    parser.add_argument('--app-window', action='store_true')
     args = parser.parse_args()
     store = Store(args.data_dir)
     store.seed_docs()
@@ -633,7 +671,7 @@ def main():
     url = f'http://127.0.0.1:{server.server_port}'
     print(f'Jarvis: {url}\nMemória: {store.vault}\nCtrl+C para encerrar.', flush=True)
     if not args.no_browser:
-        webbrowser.open(url)
+        open_interface(url, app_window=args.app_window)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -643,3 +681,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

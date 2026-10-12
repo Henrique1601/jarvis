@@ -5,7 +5,7 @@ Assistente de Henrique com painel local, memória Markdown/Obsidian, tarefas e v
 ## Começar
 
 1. Execute **CONFIGURAR-ANTIGRAVITY.bat** para preparar o CLI local. O fluxo oferece login pelo navegador; digite credenciais apenas na interface Google. O Antigravity CLI fica em `.tools/antigravity/agy.exe`, sem exigir Node.js. **CONFIGURAR-GEMINI.bat** encaminha para o novo script.
-2. Execute **INICIAR.bat**. O painel abre em http://127.0.0.1:8765. Requer Python 3.11+. O serviço foi testado com Python 3.14 no Windows.
+2. Execute **INICIAR.bat** (navegador padrão) ou **INICIAR-APP.bat** (janela desktop dedicada `--app-window` via Edge/Chrome). O painel abre em http://127.0.0.1:8765. Requer Python 3.11+. O serviço foi testado com Python 3.14 no Windows.
 3. Abra **Verificar instalação** e use o teste de conexão Antigravity. Esse botão solicita uma resposta real e pode consumir sua cota. Encontrar o CLI não confirma o login nem a lista real de ferramentas permitidas.
 4. Abra `data/vault` como cofre no Obsidian e comece por `wiki/cerebro-jarvis.md`.
 

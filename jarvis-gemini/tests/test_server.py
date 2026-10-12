@@ -95,4 +95,29 @@ class Tests(unittest.TestCase):
         finally:
             http.shutdown();http.server_close();thread.join()
 
+    def test_open_interface_app_window_and_fallback(self):
+        with self.assertRaises(ValueError):
+            server.open_interface('https://evil.example', app_window=True)
+        with self.assertRaises(ValueError):
+            server.open_interface('http://127.0.0.1:8765/extra', app_window=False)
+
+        with patch.object(server.webbrowser, 'open') as mock_web:
+            self.assertEqual(server.open_interface('http://127.0.0.1:8765', app_window=False), 'browser')
+            mock_web.assert_called_once_with('http://127.0.0.1:8765')
+
+        with patch.object(server, 'find_app_browser', return_value='C:/Edge/msedge.exe'), \
+             patch.object(server.subprocess, 'Popen') as mock_popen, \
+             patch.object(server.webbrowser, 'open') as mock_web:
+            self.assertEqual(server.open_interface('http://127.0.0.1:8765', app_window=True), 'app_window')
+            mock_popen.assert_called_once()
+            args = mock_popen.call_args[0][0]
+            self.assertEqual(args, ['C:/Edge/msedge.exe', '--app=http://127.0.0.1:8765', '--window-size=1280,860'])
+            mock_web.assert_not_called()
+
+        with patch.object(server, 'find_app_browser', return_value=None), \
+             patch.object(server.webbrowser, 'open') as mock_web:
+            self.assertEqual(server.open_interface('http://127.0.0.1:8765', app_window=True), 'browser')
+            mock_web.assert_called_once_with('http://127.0.0.1:8765')
+
+
 if __name__=='__main__':unittest.main()
